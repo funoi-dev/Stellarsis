@@ -296,3 +296,20 @@ code {
     border-radius: 3px;
     font-family: monospace;
 }
+
+/* 临时消息的特殊样式 */
+.chat-message.pending-message {
+    opacity: 0.8;
+    transition: opacity 0.3s ease;
+}
+
+/* 当临时消息被确认时平滑过渡 */
+.chat-message.pending-message.confirmed {
+    opacity: 1;
+    animation: confirmMessage 0.5s ease;
+}
+
+@keyframes confirmMessage {
+    from { transform: scale(0.98); opacity: 0.8; }
+    to { transform: scale(1); opacity: 1; }
+}

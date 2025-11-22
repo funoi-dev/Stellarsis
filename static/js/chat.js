@@ -10,6 +10,8 @@ let isRenderingReady = false;
 let renderRetryCount = 0;
 const MAX_RENDER_RETRY = 3;
 let processedMessageIds = new Set();
+const processedContentHashes = new Set();
+const pendingMessages = new Map();
 
 // 初始化渲染系统
 function initializeRenderingSystem() {
@@ -58,6 +60,26 @@ function escapeHtml(unsafe) {
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
+}
+
+// 生成内容哈希
+function generateContentHash(content, timestamp) {
+    // 简单哈希：截取内容前50字符 + 时间戳（精确到秒）
+    const contentSnippet = content.substring(0, 50);
+    const timeKey = new Date(timestamp).getTime() / 1000 | 0;  // 精确到秒
+    return btoa(encodeURIComponent(`${contentSnippet}|${timeKey}`)).substring(0, 16);
+}
+
+// 统一时间格式化函数（UTC+8时区）
+function formatTimeDisplay(timestamp) {
+    // 将UTC时间转换为UTC+8（北京时间）
+    const date = new Date(timestamp);
+    const beijingTime = new Date(date.getTime() + 8 * 60 * 60 * 1000);
+    
+    // 格式化时间
+    const hours = beijingTime.getHours().toString().padStart(2, '0');
+    const minutes = beijingTime.getMinutes().toString().padStart(2, '0');
+    return `${hours}:${minutes}`;
 }
 
 // 全局变量 - 需要从页面数据获取
@@ -254,7 +276,15 @@ function setupWebSocket() {
         });
         
         chatSocket.on('message', (data) => {
-            addMessageToUI(data);
+            // 检查是否是对本地消息的确认
+            if (data.client_id && pendingMessages.has(data.client_id)) {
+                // 更新现有消息，而不是添加新消息
+                updateExistingMessage(data.client_id, data);
+                pendingMessages.delete(data.client_id);
+            } else {
+                // 新消息
+                addMessageToUI(data);
+            }
         });
         
         chatSocket.on('status', (data) => {
@@ -337,6 +367,16 @@ function sendMessage() {
     const message = messageInput.value.trim();
     if (!message) return;
     
+    // 生成唯一客户端ID
+    const clientId = 'client-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5);
+    
+    // 保存到待确认消息集合
+    pendingMessages.set(clientId, {
+        content: message,
+        timestamp: new Date().toISOString(),
+        sentTime: Date.now()
+    });
+    
     // 清空输入框
     messageInput.value = '';
     
@@ -344,21 +384,23 @@ function sendMessage() {
     if (chatSocket && chatSocket.connected) {
         // 本地预览
         const localMessage = {
-            id: 'temp-' + Date.now(),
+            id: clientId,
             content: message,
             timestamp: new Date().toISOString(),
             user_id: currentUserId,
             username: currentUsername,
             nickname: currentNickname,
             color: currentUserColor,
-            badge: currentUserBadge
+            badge: currentUserBadge,
+            isPending: true  // 标记为待确认
         };
         
         addMessageToUI(localMessage, true);
         
         chatSocket.emit('send_message', {
             room_id: roomId,
-            message: message
+            message: message,
+            client_id: clientId  // 发送客户端ID
         });
     } else {
         // WebSocket不可用，使用AJAX
@@ -431,23 +473,23 @@ function addMessageToUI(msg, isLocal = false) {
     const messagesContainer = document.getElementById('chat-messages');
     if (!messagesContainer) return;
     
-    // 检查是否已经处理过这个消息（避免重复显示）
-    if (msg.id && processedMessageIds.has(msg.id)) {
+    // 高级重复消息检测：不仅检查ID，还检查内容+时间的组合
+    const contentHash = generateContentHash(msg.content, msg.timestamp);
+    if ((msg.id && processedMessageIds.has(msg.id)) || 
+        processedContentHashes.has(contentHash)) {
         return;
     }
     
     // 添加到已处理集合
-    if (msg.id) {
-        processedMessageIds.add(msg.id);
-    }
+    if (msg.id) processedMessageIds.add(msg.id);
+    processedContentHashes.add(contentHash);
     
-    // 创建消息元素
+    // 创建消息元素（传递原始消息对象和是否本地消息标志）
     const messageElement = createMessageElement(msg, isLocal);
+    messageElement.dataset.contentHash = contentHash;  // 存储内容哈希以便后续匹配
     
     // 添加到容器
     messagesContainer.appendChild(messageElement);
-    
-    // 滚动到底部
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 }
 
@@ -464,10 +506,43 @@ function addStatusMessage(msg) {
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 }
 
+// 更新现有消息
+function updateExistingMessage(clientId, serverMessage) {
+    // 查找对应的消息元素
+    const existingMessage = document.querySelector(`[data-message-id="${clientId}"]`);
+    if (!existingMessage) return;
+    
+    // 更新ID（从临时ID到服务器ID）
+    existingMessage.dataset.messageId = serverMessage.id;
+    
+    // 更新时间戳
+    const timeElement = existingMessage.querySelector('.message-time');
+    if (timeElement) {
+        timeElement.textContent = formatTimeDisplay(serverMessage.timestamp);
+    }
+    
+    // 清除pending状态
+    existingMessage.classList.remove('pending-message');
+    
+    // 重新渲染内容（如有需要）
+    const contentElement = existingMessage.querySelector('.message-content');
+    if (contentElement && typeof window.renderContent === 'function') {
+        try {
+            contentElement.innerHTML = window.renderContent(serverMessage.content);
+        } catch (e) {
+            console.error('更新消息内容失败:', e);
+        }
+    }
+    
+    // 更新processed集合
+    processedMessageIds.delete(clientId);
+    processedMessageIds.add(serverMessage.id);
+}
+
 // 创建消息元素
 function createMessageElement(msg, isLocal = false) {
     const messageElement = document.createElement('div');
-    messageElement.className = `chat-message ${isLocal ? 'local-message' : ''}`;
+    messageElement.className = `chat-message ${isLocal ? 'local-message' : ''} ${msg.isPending ? 'pending-message' : ''}`;
     
     // 用户信息
     const userElement = document.createElement('div');
@@ -492,8 +567,7 @@ function createMessageElement(msg, isLocal = false) {
     // 时间
     const timeElement = document.createElement('span');
     timeElement.className = 'message-time';
-    const date = new Date(msg.timestamp);
-    timeElement.textContent = date.toLocaleTimeString();
+    timeElement.textContent = formatTimeDisplay(msg.timestamp);
     userElement.appendChild(timeElement);
     
     // 消息内容
