@@ -175,156 +175,115 @@
             document.head.appendChild(link);
         }
         
-        // 全局渲染函数（将在加载库后定义）
-                                window.renderContent = function(content) {
-                            try {
-                                // 1. 先用marked渲染Markdown
-                                let html = marked.parse(content);
-                                
-                                // 2. 处理行内LaTeX: $
-                                html = html.replace(/$([^$]+)$/g, function(match, p1) {
-                                    try {
-                                        return katex.renderToString(p1, {
-                                            throwOnError: false,
-                                            displayMode: false
-                                        });
-                                    } catch (e) {
-                                        console.warn('KaTeX渲染失败:', e.message);
-                                        return '<span class="katex-error">$' + escapeHtml(p1) + '$</span>';
-                                    }
-                                });
-                                
-                                // 3. 处理块级LaTeX: 37(...)37
-                                html = html.replace(/$$([^$]+)$$/g, function(match, p1) {
-                                    try {
-                                        return '<div class="katex-block">' +
-                                               katex.renderToString(p1, {
-                                                   throwOnError: false,
-                                                   displayMode: true
-                                               }) +
-                                               '</div>';
-                                    } catch (e) {
-                                        console.warn('KaTeX块级渲染失败:', e.message);
-                                        return '<div class="katex-block katex-error">37' + escapeHtml(p1) + '37</div>';
-                                    }
-                                });
-                                
-                                // 4. 处理行内LaTeX: \(...\)
-                                html = html.replace(/\\((.*?)\\)/g, function(match, p1) {
-                                    try {
-                                        return katex.renderToString(p1, {
-                                            throwOnError: false,
-                                            displayMode: false
-                                        });
-                                    } catch (e) {
-                                        console.warn('KaTeX渲染失败:', e.message);
-                                        return '<span class="katex-error">\(' + escapeHtml(p1) + '\)</span>';
-                                    }
-                                });
-                                
-                                // 5. 处理块级LaTeX: \[...\]
-                                html = html.replace(/\\[(.*?)\\]/g, function(match, p1) {
-                                    try {
-                                        return '<div class="katex-block">' +
-                                               katex.renderToString(p1, {
-                                                   throwOnError: false,
-                                                   displayMode: true
-                                               }) +
-                                               '</div>';
-                                    } catch (e) {
-                                        console.warn('KaTeX块级渲染失败:', e.message);
-                                        return '<div class="katex-block katex-error">\[' + escapeHtml(p1) + '\]</div>';
-                                    }
-                                });
-                                
-                                return html;
-                            } catch (e) {
-                                console.error('内容渲染失败:', e);
-                                // 降级：显示原始内容，但进行HTML转义
-                                return '<div class="render-error">' +
-                                       escapeHtml(content) +
-                                       '</div>';
-                            }
-                        };;
-                            return callback();
-                        }
-                        
-                        // 加载完成，定义渲染函数
-                        window.renderContent = function(content) {
-                            try {
-                                // 1. 先用marked渲染Markdown
-                                let html = marked.parse(content);
-                                
-                                // 2. 处理行内LaTeX: \(...\)
-                                html = html.replace(/\\\((.*?)\\\)/g, function(match, p1) {
-                                    try {
-                                        return katex.renderToString(p1, {
-                                            throwOnError: false,
-                                            displayMode: false
-                                        });
-                                    } catch (e) {
-                                        console.warn('KaTeX渲染失败:', e.message);
-                                        return '<span class="katex-error">\\(' + escapeHtml(p1) + '\\)</span>';
-                                    }
-                                });
-                                
-                                // 3. 处理块级LaTeX: \[...\]
-                                html = html.replace(/\\\[(.*?)\\\]/g, function(match, p1) {
-                                    try {
-                                        return '<div class="katex-block">' + 
-                                               katex.renderToString(p1, {
-                                                   throwOnError: false,
-                                                   displayMode: true
-                                               }) + 
-                                               '</div>';
-                                    } catch (e) {
-                                        console.warn('KaTeX块级渲染失败:', e.message);
-                                        return '<div class="katex-block katex-error">\\[' + escapeHtml(p1) + '\\]</div>';
-                                    }
-                                });
-                                
-                                return html;
-                            } catch (e) {
-                                console.error('内容渲染失败:', e);
-                                // 降级：显示原始内容，但进行HTML转义
-                                return '<div class="render-error">' + 
-                                       escapeHtml(content) + 
-                                       '</div>';
-                            }
-                        };
-                        
-                        callback();
-                    });
+        // 加载渲染库
+        function loadRenderLibs(callback) {
+            // 首先加载marked
+            loadScript('https://cdn.jsdelivr.net/npm/marked@4.0.0/marked.min.js', function(err) {
+                if (err) return callback(err);
+                
+                // 然后加载KaTeX JS
+                loadScript('https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.js', callback);
+            });
+        }
+        
+        // HTML转义函数
+        function escapeHtml(unsafe) {
+            if (!unsafe) return '';
+            return unsafe
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+        
+        // 全局渲染函数
+        window.renderContent = function(content) {
+            try {
+                // 1. 先用marked渲染Markdown
+                let html = marked.parse(content);
+                
+                // 2. 处理行内LaTeX: $...$
+                html = html.replace(/\$([^\$]+)\$/g, function(match, p1) {
+                    try {
+                        return katex.renderToString(p1, {
+                            throwOnError: false,
+                            displayMode: false
+                        });
+                    } catch (e) {
+                        console.warn('KaTeX渲染失败:', e.message);
+                        return '<span class="katex-error">$' + escapeHtml(p1) + '$</span>';
+                    }
                 });
-            };
-            
-            // HTML转义函数
-            function escapeHtml(unsafe) {
-                if (!unsafe) return '';
-                return unsafe
-                    .replace(/&/g, "&amp;")
-                    .replace(/</g, "<")
-                    .replace(/>/g, ">")
-                    .replace(/"/g, "&quot;")
-                    .replace(/'/g, "&#039;");
+                
+                // 3. 处理块级LaTeX: $$...$$
+                html = html.replace(/\$\$([^\$]+)\$\$/g, function(match, p1) {
+                    try {
+                        return '<div class="katex-block">' +
+                               katex.renderToString(p1, {
+                                   throwOnError: false,
+                                   displayMode: true
+                               }) +
+                               '</div>';
+                    } catch (e) {
+                        console.warn('KaTeX块级渲染失败:', e.message);
+                        return '<div class="katex-block katex-error">$$' + escapeHtml(p1) + '$$</div>';
+                    }
+                });
+                
+                // 4. 处理行内LaTeX: \(...\)
+                html = html.replace(/\\\((.*?)\\\)/g, function(match, p1) {
+                    try {
+                        return katex.renderToString(p1, {
+                            throwOnError: false,
+                            displayMode: false
+                        });
+                    } catch (e) {
+                        console.warn('KaTeX渲染失败:', e.message);
+                        return '<span class="katex-error">\\(' + escapeHtml(p1) + '\\)</span>';
+                    }
+                });
+                
+                // 5. 处理块级LaTeX: \[...\]
+                html = html.replace(/\\\[(.*?)\\\]/g, function(match, p1) {
+                    try {
+                        return '<div class="katex-block">' +
+                               katex.renderToString(p1, {
+                                   throwOnError: false,
+                                   displayMode: true
+                               }) +
+                               '</div>';
+                    } catch (e) {
+                        console.warn('KaTeX块级渲染失败:', e.message);
+                        return '<div class="katex-block katex-error">\\[' + escapeHtml(p1) + '\\]</div>';
+                    }
+                });
+                
+                return html;
+            } catch (e) {
+                console.error('内容渲染失败:', e);
+                // 降级：显示原始内容，但进行HTML转义
+                return '<div class="render-error">' +
+                       escapeHtml(content) +
+                       '</div>';
+            }
+        };
+        
+        // 尝试加载渲染库
+        loadRenderLibs(function(err) {
+            if (err) {
+                console.error('渲染库加载失败，将使用纯文本模式:', err);
+                // 定义安全的纯文本渲染函数
+                window.renderContent = function(content) {
+                    return '<pre class="plaintext-render">' + 
+                           escapeHtml(content) + 
+                           '</pre>';
+                };
             }
             
-            // 尝试加载渲染库
-            loadRenderLibs(function(err) {
-                if (err) {
-                    console.error('渲染库加载失败，将使用纯文本模式:', err);
-                    // 定义安全的纯文本渲染函数
-                    window.renderContent = function(content) {
-                        return '<pre class="plaintext-render">' + 
-                               escapeHtml(content) + 
-                               '</pre>';
-                    };
-                }
-                
-                // 触发自定义事件，通知页面渲染库已就绪
-                var event = new Event('renderReady');
-                document.dispatchEvent(event);
-            });
+            // 触发自定义事件，通知页面渲染库已就绪
+            var event = new Event('renderReady');
+            document.dispatchEvent(event);
         });
     </script>
     {% endblock %}
