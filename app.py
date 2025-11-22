@@ -188,6 +188,35 @@ def update_database_schema():
 # 应用启动时更新数据库结构
 update_database_schema()
 
+# 确保admin用户是管理员
+def ensure_admin_user():
+    """确保admin用户是管理员角色"""
+    try:
+        # 查找用户名为admin的用户
+        admin_user = db_session.query(User).filter_by(username='admin').first()
+        if admin_user:
+            # 如果admin用户存在但不是管理员，则设置为管理员
+            if admin_user.role != 'admin':
+                admin_user.role = 'admin'
+                db_session.commit()
+                logger.info("已将admin用户设置为管理员")
+        else:
+            # 如果admin用户不存在，创建一个默认的admin用户
+            new_admin = User(
+                username='admin',
+                nickname='管理员',
+                role='admin'
+            )
+            new_admin.set_password('admin123')  # 默认密码
+            db_session.add(new_admin)
+            db_session.commit()
+            logger.info("已创建默认admin用户")
+    except Exception as e:
+        logger.error(f"设置管理员用户失败: {str(e)}")
+
+# 应用启动时确保admin用户是管理员
+ensure_admin_user()
+
 # 用户加载函数
 @login_manager.user_loader
 def load_user(user_id):
@@ -1196,10 +1225,12 @@ def delete_chat_messages():
 @login_required
 def update_forum_section(section_id):
     if not current_user.is_admin():
-        return jsonify(success=False, message="权限不足"), 403
+        return jsonify({'success': False, 'message': "权限不足"}), 403
+    
+    try:
         section = db_session.query(ForumSection).get(section_id)
         if not section:
-            return jsonify(success=False, message="贴吧分区不存在"), 404
+            return jsonify({'success': False, 'message': "贴吧分区不存在"}), 404
         
         data = request.get_json()
         if 'name' in data and data['name']:
@@ -1209,9 +1240,9 @@ def update_forum_section(section_id):
         
         db_session.commit()
         log_admin_action(f"更新了贴吧分区 {section.name} 的信息")
-        return jsonify(success=True, message="贴吧分区信息更新成功")
+        return jsonify({'success': True, 'message': "贴吧分区信息更新成功"})
     except Exception as e:
-        return jsonify(success=False, message=f"更新贴吧分区失败: {str(e)}"), 500
+        return jsonify({'success': False, 'message': f"更新贴吧分区失败: {str(e)}"}), 500
 
 @app.route('/api/admin/forum/sections/<int:section_id>', methods=['DELETE'])
 @login_required
