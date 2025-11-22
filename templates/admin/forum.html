@@ -1,0 +1,463 @@
+{% extends "base.html" %}
+
+{% block head %}
+    <title>帖子管理 - 社交平台</title>
+    <style>
+        .admin-container {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 0 15px;
+        }
+        
+        .forum-table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .forum-table th, .forum-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .forum-table th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+            color: #495057;
+        }
+        
+        .forum-table tr:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 0.9em;
+            transition: background-color 0.2s;
+        }
+        
+        .btn-edit {
+            background-color: #007bff;
+            color: white;
+        }
+        
+        .btn-edit:hover {
+            background-color: #0056b3;
+        }
+        
+        .btn-delete {
+            background-color: #dc3545;
+            color: white;
+        }
+        
+        .btn-delete:hover {
+            background-color: #c82333;
+        }
+        
+        .btn-add {
+            background-color: #28a745;
+            color: white;
+            padding: 8px 16px;
+            margin-bottom: 20px;
+        }
+        
+        .btn-add:hover {
+            background-color: #218838;
+        }
+        
+        .search-box {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.1);
+        }
+        
+        .search-box input {
+            padding: 8px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            margin-right: 10px;
+            width: 300px;
+        }
+        
+        .search-box button {
+            padding: 8px 16px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .pagination {
+            margin-top: 20px;
+            text-align: center;
+        }
+        
+        .pagination a {
+            display: inline-block;
+            padding: 8px 12px;
+            margin: 0 4px;
+            text-decoration: none;
+            background-color: #f8f9fa;
+            color: #007bff;
+            border-radius: 4px;
+        }
+        
+        .pagination a:hover {
+            background-color: #e9ecef;
+        }
+        
+        .pagination .current {
+            background-color: #007bff;
+            color: white;
+        }
+        
+        @media (max-width: 768px) {
+            .forum-table {
+                font-size: 0.9em;
+            }
+            
+            .forum-table th, .forum-table td {
+                padding: 8px 10px;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+                gap: 5px;
+            }
+            
+            .btn {
+                margin-bottom: 5px;
+            }
+        }
+        
+        .post-actions {
+            margin-top: 20px;
+        }
+        
+        .post-actions .btn {
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <div class="admin-container">
+        <h1>帖子管理</h1>
+        
+        <div class="post-actions">
+            <button class="btn btn-add" onclick="deleteAllPosts()">删除所有帖子</button>
+        </div>
+        
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="搜索分区名称...">
+            <button onclick="searchSections()">搜索</button>
+            <button onclick="clearSearch()">清除</button>
+        </div>
+        
+        <table class="forum-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>名称</th>
+                    <th>描述</th>
+                    <th>帖子数量</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="forumTableBody">
+                {% for section in sections %}
+                <tr id="section-row-{{ section.id }}">
+                    <td>{{ section.id }}</td>
+                    <td>{{ section.name }}</td>
+                    <td>{{ section.description or '无描述' }}</td>
+                    <td>
+                        {% set thread_count = section.threads|length %}
+                        {% set reply_count = 0 %}
+                        {% for thread in section.threads %}
+                            {% set reply_count = reply_count + thread.replies|length %}
+                        {% endfor %}
+                        主题: {{ thread_count }}, 回复: {{ reply_count }}
+                    </td>
+                    <td class="action-buttons">
+                        {% if section.id != 1 %}
+                            <button class="btn btn-edit" onclick="editSection({{ section.id }}, '{{ section.name|e }}', '{{ section.description|e }}')">编辑</button>
+                            <button class="btn btn-delete" onclick="deleteSection({{ section.id }}, '{{ section.name|e }}')">删除</button>
+                        {% else %}
+                            <span style="color: #6c757d; font-size: 0.9em;">默认分区</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- 编辑分区模态框 -->
+    <div id="editSectionModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000;">
+        <div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); background:white; padding:20px; border-radius:8px; width:400px; max-width:90%;">
+            <h3>编辑贴吧分区</h3>
+            <form id="editSectionForm">
+                <input type="hidden" id="editSectionId" value="">
+                <div style="margin-bottom:15px;">
+                    <label>名称:</label>
+                    <input type="text" id="editSectionName" style="width:100%; padding:8px; margin-top:5px;" required>
+                </div>
+                <div style="margin-bottom:15px;">
+                    <label>描述:</label>
+                    <textarea id="editSectionDescription" style="width:100%; padding:8px; margin-top:5px; height:80px;"></textarea>
+                </div>
+                <div style="text-align:right;">
+                    <button type="button" onclick="closeModal()" style="padding:8px 16px; margin-right:10px; background:#6c757d; color:white; border:none; border-radius:4px; cursor:pointer;">取消</button>
+                    <button type="submit" style="padding:8px 16px; background:#007bff; color:white; border:none; border-radius:4px; cursor:pointer;">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- 删除帖子模态框 -->
+    <div id="deletePostModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000;">
+        <div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); background:white; padding:20px; border-radius:8px; width:400px; max-width:90%;">
+            <h3>删除帖子</h3>
+            <div style="margin-bottom:15px;">
+                <label>帖子ID:</label>
+                <input type="number" id="postIdToDelete" style="width:100%; padding:8px; margin-top:5px;" placeholder="输入帖子或回复的ID">
+                <small style="color:#6c757d; display:block; margin-top:5px;">输入主题帖ID可删除整个主题帖及其所有回复</small>
+            </div>
+            <div style="text-align:right;">
+                <button type="button" onclick="closeDeletePostModal()" style="padding:8px 16px; margin-right:10px; background:#6c757d; color:white; border:none; border-radius:4px; cursor:pointer;">取消</button>
+                <button type="button" onclick="confirmDeletePost()" style="padding:8px 16px; background:#dc3545; color:white; border:none; border-radius:4px; cursor:pointer;">删除帖子</button>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+        // 搜索功能
+        function searchSections() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const rows = document.querySelectorAll('#forumTableBody tr');
+            
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                if (text.includes(searchTerm)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+        
+        // 清除搜索
+        function clearSearch() {
+            document.getElementById('searchInput').value = '';
+            const rows = document.querySelectorAll('#forumTableBody tr');
+            rows.forEach(row => {
+                row.style.display = '';
+            });
+        }
+        
+        // 监听回车键搜索
+        document.getElementById('searchInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchSections();
+            }
+        });
+        
+        // 编辑分区
+        function editSection(sectionId, name, description) {
+            document.getElementById('editSectionId').value = sectionId;
+            document.getElementById('editSectionName').value = name;
+            document.getElementById('editSectionDescription').value = description || '';
+            document.getElementById('editSectionModal').style.display = 'block';
+        }
+        
+        // 删除分区
+        function deleteSection(sectionId, sectionName) {
+            if (!confirm(`确定要删除贴吧分区 "${sectionName}" 吗？此操作将删除该分区下的所有帖子和回复，不可撤销！`)) {
+                return;
+            }
+            
+            fetch(`/api/admin/forum/sections/${sectionId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById(`section-row-${sectionId}`).remove();
+                    alert(data.message);
+                } else {
+                    alert('删除失败: ' + (data.message || '未知错误'));
+                }
+            })
+            .catch(error => {
+                alert('删除失败: ' + error.message);
+            });
+        }
+        
+        // 关闭模态框
+        function closeModal() {
+            document.getElementById('editSectionModal').style.display = 'none';
+        }
+        
+        function closeDeletePostModal() {
+            document.getElementById('deletePostModal').style.display = 'none';
+        }
+        
+        // 保存分区修改
+        document.getElementById('editSectionForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const sectionId = document.getElementById('editSectionId').value;
+            const name = document.getElementById('editSectionName').value;
+            const description = document.getElementById('editSectionDescription').value;
+            
+            fetch(`/api/admin/forum/sections/${sectionId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    name: name,
+                    description: description
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // 更新页面上的分区信息
+                    const row = document.getElementById(`section-row-${sectionId}`);
+                    row.cells[1].textContent = name;
+                    row.cells[2].textContent = description || '无描述';
+                    
+                    closeModal();
+                    alert(data.message);
+                } else {
+                    alert('操作失败: ' + (data.message || '未知错误'));
+                }
+            })
+            .catch(error => {
+                alert('操作失败: ' + error.message);
+            });
+        });
+        
+        // 删除所有帖子
+        function deleteAllPosts() {
+            if (!confirm('警告：此操作将删除所有贴吧分区下的所有帖子和回复，此操作不可撤销！确定要继续吗？')) {
+                return;
+            }
+            
+            // 首先删除所有分区（除了默认分区）
+            const sections = document.querySelectorAll('#forumTableBody tr');
+            const promises = [];
+            
+            sections.forEach(row => {
+                const sectionId = parseInt(row.id.replace('section-row-', ''));
+                if (sectionId !== 1) { // 不删除默认分区
+                    promises.push(
+                        fetch(`/api/admin/forum/sections/${sectionId}`, {
+                            method: 'DELETE',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            }
+                        })
+                    );
+                }
+            });
+            
+            Promise.all(promises)
+            .then(responses => {
+                return Promise.all(responses.map(r => r.json()));
+            })
+            .then(results => {
+                results.forEach((result, index) => {
+                    if (result.success) {
+                        const sectionId = parseInt(sections[index].id.replace('section-row-', ''));
+                        if (sectionId !== 1) {
+                            sections[index].remove();
+                        }
+                    }
+                });
+                
+                alert('所有非默认分区及其帖子已删除');
+            })
+            .catch(error => {
+                alert('删除失败: ' + error.message);
+            });
+        }
+        
+        // 删除特定帖子
+        function deletePost() {
+            document.getElementById('deletePostModal').style.display = 'block';
+        }
+        
+        // 确认删除特定帖子
+        function confirmDeletePost() {
+            const postId = document.getElementById('postIdToDelete').value;
+            
+            if (!postId || isNaN(postId)) {
+                alert('请输入有效的帖子ID');
+                return;
+            }
+            
+            if (!confirm(`确定要删除ID为 ${postId} 的帖子吗？此操作不可撤销！`)) {
+                return;
+            }
+            
+            fetch(`/api/admin/forum/posts/${postId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    closeDeletePostModal();
+                    document.getElementById('postIdToDelete').value = '';
+                    alert(data.message);
+                } else {
+                    alert('删除失败: ' + (data.message || '未知错误'));
+                }
+            })
+            .catch(error => {
+                alert('删除失败: ' + error.message);
+            });
+        }
+        
+        // 点击模态框外部关闭
+        window.onclick = function(event) {
+            const editModal = document.getElementById('editSectionModal');
+            const deleteModal = document.getElementById('deletePostModal');
+            
+            if (event.target === editModal) {
+                closeModal();
+            }
+            if (event.target === deleteModal) {
+                closeDeletePostModal();
+            }
+        }
+    </script>
+{% endblock %}

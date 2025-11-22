@@ -177,9 +177,16 @@
                 <ul class="file-list">
                     {% if current_path != '' %}
                         <li>
-                            <a href="{{ url_for('file_manager_view', path=current_path.rsplit('/', 1)[0]) if '/' in current_path else url_for('file_manager_view') }}">
-                                <span class="file-icon">📁</span> ..
-                            </a>
+                            {% set parent_path = current_path.rsplit('/', 1)[0] %}
+                            {% if parent_path == '' %}
+                                <a href="{{ url_for('file_manager_view') }}">
+                                    <span class="file-icon">📁</span> ..
+                                </a>
+                            {% else %}
+                                <a href="{{ url_for('file_manager_view', path=parent_path) }}">
+                                    <span class="file-icon">📁</span> ..
+                                </a>
+                            {% endif %}
                         </li>
                     {% endif %}
                     
