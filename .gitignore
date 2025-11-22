@@ -1,18 +1,32 @@
-# Compiled and build artifacts
-*.pyc
-__pycache__/
-*.o
-*.obj
-
 # Dependencies
-.venv/
-venv/
 node_modules/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
 
-# Logs and temp files
+# Build artifacts
+build/
+dist/
+*.egg
+*.egg-info/
+*.so
+*.dylib
+*.dll
+*.exe
+*.out
+
+# Logs
 *.log
 *.tmp
-*.swp
 
 # Environment
 .env
@@ -22,35 +36,98 @@ node_modules/
 # Editors
 .vscode/
 .idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+*.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Icon?
+Network Trash Folder
+Temporary Items
+.apdisk
+*.nib
+local.properties
+*.sublime-workspace
+
+# Testing
+.coverage*
+coverage/
+htmlcov/
+.pytest_cache/
+.hypothesis/
+
+# Compression
+*.zip
+*.gz
+*.tar
+*.tgz
+*.bz2
+*.xz
+*.7z
+*.rar
+*.zst
+*.lz4
+*.lzh
+*.cab
+*.arj
+*.rpm
+*.deb
+*.Z
+*.lz
+*.lzo
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.tar.zst
+
+# Distribution / packaging
+.Python
+*.so
+*.egg-info/
+MANIFEST
+
+# IDE
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
 
 # Coverage
 .coverage
+.coverage.*
+.nyc_output
 coverage/
 htmlcov/
-
-# Python
+*.lcov
+*.profdata
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+*.so
+.Python
+.pytest_cache/
+.hypothesis/
+.coverage*
+htmlcov/
+.pytest_cache/
+.mypy_cache/
 *.pyc
 __pycache__/
 *.pyo
 *.pyd
 .Python
-*.so
-.Python
-*.egg-info/
-.eggs/
-
-# Build directories
-build/
-dist/
-*.egg
-*.whl
-*.zip
-
-# System files
-.DS_Store
-Thumbs.db
-
-# Original rules preserved
-*.log
-
-*.db
+.pytest_cache/
+.hypothesis/
+.coverage*
+htmlcov/
+.pytest_cache/
+.mypy_cache/

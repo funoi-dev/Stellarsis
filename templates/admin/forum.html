@@ -163,6 +163,7 @@
         <h1>帖子管理</h1>
         
         <div class="post-actions">
+            <button class="btn btn-add" onclick="createSection()">创建新分区</button>
             <button class="btn btn-add" onclick="deleteAllPosts()">删除所有帖子</button>
         </div>
         
@@ -232,6 +233,27 @@
         </div>
     </div>
     
+    <!-- 创建分区模态框 -->
+    <div id="createSectionModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000;">
+        <div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); background:white; padding:20px; border-radius:8px; width:400px; max-width:90%;">
+            <h3>创建贴吧分区</h3>
+            <form id="createSectionForm">
+                <div style="margin-bottom:15px;">
+                    <label>名称:</label>
+                    <input type="text" id="createSectionName" style="width:100%; padding:8px; margin-top:5px;" required>
+                </div>
+                <div style="margin-bottom:15px;">
+                    <label>描述:</label>
+                    <textarea id="createSectionDescription" style="width:100%; padding:8px; margin-top:5px; height:80px;"></textarea>
+                </div>
+                <div style="text-align:right;">
+                    <button type="button" onclick="closeCreateModal()" style="padding:8px 16px; margin-right:10px; background:#6c757d; color:white; border:none; border-radius:4px; cursor:pointer;">取消</button>
+                    <button type="submit" style="padding:8px 16px; background:#28a745; color:white; border:none; border-radius:4px; cursor:pointer;">创建</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
     <!-- 删除帖子模态框 -->
     <div id="deletePostModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000;">
         <div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); background:white; padding:20px; border-radius:8px; width:400px; max-width:90%;">
@@ -285,10 +307,17 @@
         
         // 编辑分区
         function editSection(sectionId, name, description) {
-            document.getElementById('editSectionId').value = sectionId;
-            document.getElementById('editSectionName').value = name;
-            document.getElementById('editSectionDescription').value = description || '';
-            document.getElementById('editSectionModal').style.display = 'block';
+            document.getElementById(\'editSectionId\').value = sectionId;
+            document.getElementById(\'editSectionName\').value = name;
+            document.getElementById(\'editSectionDescription\').value = description || \'\';
+            document.getElementById(\'editSectionModal\').style.display = \'block\';
+        }
+        
+        // 创建分区
+        function createSection() {
+            document.getElementById(\'createSectionName\').value = \'\';
+            document.getElementById(\'createSectionDescription\').value = \'\';
+            document.getElementById(\'createSectionModal\').style.display = \'block\';
         }
         
         // 删除分区
@@ -322,6 +351,13 @@
             document.getElementById('editSectionModal').style.display = 'none';
         }
         
+        function closeCreateModal() {
+            document.getElementById('createSectionModal').style.display = 'none';
+            // 清空表单
+            document.getElementById('createSectionName').value = '';
+            document.getElementById('createSectionDescription').value = '';
+        }
+        
         function closeDeletePostModal() {
             document.getElementById('deletePostModal').style.display = 'none';
         }
@@ -353,6 +389,52 @@
                     row.cells[2].textContent = description || '无描述';
                     
                     closeModal();
+                    alert(data.message);
+                } else {
+                    alert('操作失败: ' + (data.message || '未知错误'));
+                }
+            })
+            .catch(error => {
+                alert('操作失败: ' + error.message);
+            });
+        });
+        
+        // 创建分区表单提交
+        document.getElementById('createSectionForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const name = document.getElementById('createSectionName').value;
+            const description = document.getElementById('createSectionDescription').value;
+            
+            fetch('/api/admin/forum/sections', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    name: name,
+                    description: description
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // 添加新分区到表格
+                    const newRow = document.createElement('tr');
+                    newRow.id = `section-row-${data.section.id}`;
+                    newRow.innerHTML = `
+                        <td>${data.section.id}</td>
+                        <td>${data.section.name}</td>
+                        <td>${data.section.description || '无描述'}</td>
+                        <td>主题: 0, 回复: 0</td>
+                        <td class="action-buttons">
+                            <button class="btn btn-edit" onclick="editSection(${data.section.id}, '${data.section.name.replace(/'/g, "\\'")}', '${(data.section.description || '').replace(/'/g, "\\'")}')">编辑</button>
+                            <button class="btn btn-delete" onclick="deleteSection(${data.section.id}, '${data.section.name.replace(/'/g, "\\'")}')">删除</button>
+                        </td>
+                    `;
+                    document.getElementById('forumTableBody').appendChild(newRow);
+                    
+                    closeCreateModal();
                     alert(data.message);
                 } else {
                     alert('操作失败: ' + (data.message || '未知错误'));

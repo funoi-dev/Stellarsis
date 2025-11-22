@@ -2,6 +2,7 @@
 
 {% block head %}
     <title>{{ room.name }} - 聊天室</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/chat.css') }}">
     <style>
         #chat-container {
             display: flex;

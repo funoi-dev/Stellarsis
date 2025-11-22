@@ -163,6 +163,7 @@
         <h1>聊天管理</h1>
         
         <div class="message-actions">
+            <button class="btn btn-add" onclick="showCreateRoomModal()">创建聊天室</button>
             <button class="btn btn-add" onclick="clearChatMessages()">清空所有聊天消息</button>
             <button class="btn btn-add" onclick="clearChatRoomMessages()">清空特定聊天室消息</button>
         </div>
@@ -200,6 +201,27 @@
                 {% endfor %}
             </tbody>
         </table>
+    </div>
+    
+    <!-- 创建房间模态框 -->
+    <div id="createRoomModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000;">
+        <div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); background:white; padding:20px; border-radius:8px; width:400px; max-width:90%;">
+            <h3>创建聊天室</h3>
+            <form id="createRoomForm">
+                <div style="margin-bottom:15px;">
+                    <label>名称:</label>
+                    <input type="text" id="createRoomName" style="width:100%; padding:8px; margin-top:5px;" required>
+                </div>
+                <div style="margin-bottom:15px;">
+                    <label>描述:</label>
+                    <textarea id="createRoomDescription" style="width:100%; padding:8px; margin-top:5px; height:80px;"></textarea>
+                </div>
+                <div style="text-align:right;">
+                    <button type="button" onclick="closeCreateModal()" style="padding:8px 16px; margin-right:10px; background:#6c757d; color:white; border:none; border-radius:4px; cursor:pointer;">取消</button>
+                    <button type="submit" style="padding:8px 16px; background:#28a745; color:white; border:none; border-radius:4px; cursor:pointer;">创建</button>
+                </div>
+            </form>
+        </div>
     </div>
     
     <!-- 编辑房间模态框 -->
@@ -284,6 +306,18 @@
             }
         });
         
+        // 显示创建房间模态框
+        function showCreateRoomModal() {
+            document.getElementById('createRoomName').value = '';
+            document.getElementById('createRoomDescription').value = '';
+            document.getElementById('createRoomModal').style.display = 'block';
+        }
+        
+        // 关闭创建模态框
+        function closeCreateModal() {
+            document.getElementById('createRoomModal').style.display = 'none';
+        }
+        
         // 编辑房间
         function editRoom(roomId, name, description) {
             document.getElementById('editRoomId').value = roomId;
@@ -364,6 +398,51 @@
             });
         });
         
+        // 创建房间
+        document.getElementById('createRoomForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const name = document.getElementById('createRoomName').value;
+            const description = document.getElementById('createRoomDescription').value;
+            
+            fetch('/api/admin/chat/rooms', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    name: name,
+                    description: description
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // 添加新房间到表格
+                    const newRow = document.createElement('tr');
+                    newRow.id = `room-row-${data.room.id}`;
+                    newRow.innerHTML = `
+                        <td>${data.room.id}</td>
+                        <td>${data.room.name}</td>
+                        <td>${data.room.description || '无描述'}</td>
+                        <td class="action-buttons">
+                            <button class="btn btn-edit" onclick="editRoom(${data.room.id}, '${data.room.name.replace(/'/g, "\\'")}', '${(data.room.description || '').replace(/'/g, "\\'")}')">编辑</button>
+                            <button class="btn btn-delete" onclick="deleteRoom(${data.room.id}, '${data.room.name.replace(/'/g, "\\'")}')">删除</button>
+                        </td>
+                    `;
+                    document.getElementById('chatTableBody').appendChild(newRow);
+                    
+                    closeCreateModal();
+                    alert(data.message);
+                } else {
+                    alert('操作失败: ' + (data.message || '未知错误'));
+                }
+            })
+            .catch(error => {
+                alert('操作失败: ' + error.message);
+            });
+        });
+        
         // 清空所有聊天消息
         function clearChatMessages() {
             if (!confirm('确定要清空所有聊天消息吗？此操作不可撤销！')) {
@@ -431,9 +510,13 @@
         
         // 点击模态框外部关闭
         window.onclick = function(event) {
+            const createModal = document.getElementById('createRoomModal');
             const editModal = document.getElementById('editRoomModal');
             const clearModal = document.getElementById('clearRoomModal');
             
+            if (event.target === createModal) {
+                closeCreateModal();
+            }
             if (event.target === editModal) {
                 closeModal();
             }
