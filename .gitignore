@@ -1,1 +1,56 @@
-Nothing needs to be added to .gitignore since the changes only include source files (.py and .html) without any build artifacts, dependencies, or temporary files that should be ignored.
+```
+# Compiled and build artifacts
+*.pyc
+__pycache__/
+*.o
+*.obj
+
+# Dependencies
+.venv/
+venv/
+node_modules/
+
+# Logs and temp files
+*.log
+*.tmp
+*.swp
+
+# Environment
+.env
+.env.local
+.env.*
+
+# Editors
+.vscode/
+.idea/
+
+# Coverage
+.coverage
+coverage/
+htmlcov/
+
+# Python
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+.Python
+*.so
+.Python
+*.egg-info/
+.eggs/
+
+# Build directories
+build/
+dist/
+*.egg
+*.whl
+*.zip
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Original rules preserved
+*.log
+```
