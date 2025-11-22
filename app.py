@@ -28,7 +28,6 @@ from markupsafe import escape, Markup
 import re
 import html
 from flask_cors import CORS
-import logging
 from logging.handlers import RotatingFileHandler
 # 配置
 from config import Config
@@ -947,85 +946,6 @@ def delete_user(user_id):
         return jsonify(success=True, message="用户删除成功")
     except Exception as e:
         return jsonify(success=False, message=f"删除用户失败: {str(e)}"), 500
-
-# 聊天管理相关路由
-@app.route('/api/admin/chat/rooms/<int:room_id>', methods=['PUT'])
-@login_required
-def update_chat_room(room_id):
-    if not current_user.is_admin():
-        return jsonify(success=False, message="权限不足"), 403
-    
-    try:
-        room = db_session.query(ChatRoom).get(room_id)
-        if not room:
-            return jsonify(success=False, message="聊天室不存在"), 404
-        
-        data = request.get_json()
-        if 'name' in data and data['name']:
-            room.name = data['name']
-        if 'description' in data:
-            room.description = data['description']
-        
-        db_session.commit()
-        log_admin_action(f"更新了聊天室 {room.name} 的信息")
-        return jsonify(success=True, message="聊天室信息更新成功")
-    except Exception as e:
-        return jsonify(success=False, message=f"更新聊天室失败: {str(e)}"), 500
-
-@app.route('/api/admin/chat/rooms/<int:room_id>', methods=['DELETE'])
-@login_required
-def delete_chat_room(room_id):
-    if not current_user.is_admin():
-        return jsonify(success=False, message="权限不足"), 403
-    
-    try:
-        room = db_session.query(ChatRoom).get(room_id)
-        if not room:
-            return jsonify(success=False, message="聊天室不存在"), 404
-        
-        if room.id == 1:  # 保护默认聊天室
-            return jsonify(success=False, message="不能删除默认聊天室"), 400
-        
-        # 删除聊天室消息
-        db_session.query(ChatMessage).filter_by(room_id=room_id).delete()
-        
-        db_session.delete(room)
-        db_session.commit()
-        
-        log_admin_action(f"删除了聊天室 {room.name}")
-        return jsonify(success=True, message="聊天室删除成功")
-    except Exception as e:
-        return jsonify(success=False, message=f"删除聊天室失败: {str(e)}"), 500
-
-@app.route('/api/admin/chat/messages', methods=['DELETE'])
-@login_required
-def clear_chat_messages():
-    if not current_user.is_admin():
-        return jsonify(success=False, message="权限不足"), 403
-    
-    try:
-        room_id = request.args.get('room_id', type=int)
-        before_date = request.args.get('before')
-        
-        query = db_session.query(ChatMessage)
-        
-        if room_id:
-            query = query.filter_by(room_id=room_id)
-        
-        if before_date:
-            try:
-                before_dt = datetime.fromisoformat(before_date)
-                query = query.filter(ChatMessage.timestamp < before_dt)
-            except:
-                pass
-        
-        count = query.delete()
-        db_session.commit()
-        
-        log_admin_action(f"清除了 {count} 条聊天消息")
-        return jsonify(success=True, message=f"成功清除了 {count} 条聊天消息", count=count)
-    except Exception as e:
-        return jsonify(success=False, message=f"清除聊天消息失败: {str(e)}"), 500
 
 @app.route('/api/admin/users/<int:user_id>/role', methods=['PUT'])
 @login_required
