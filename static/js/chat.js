@@ -11,6 +11,55 @@ let renderRetryCount = 0;
 const MAX_RENDER_RETRY = 3;
 let processedMessageIds = new Set();
 
+// 初始化渲染系统
+function initializeRenderingSystem() {
+    // 如果renderContent函数已经存在，直接使用它
+    if (typeof window.renderContent !== 'function') {
+        // 定义渲染函数，包含完整的降级方案
+        window.renderContent = function(content) {
+            try {
+                // 安全检查：确保marked可用
+                if (typeof marked !== 'undefined' && typeof marked.parse === 'function') {
+                    return marked.parse(content);
+                }
+                // 降级到简单HTML渲染
+                return simpleHtmlRender(content);
+            } catch (e) {
+                console.warn('高级渲染失败，使用降级方案:', e);
+                return simpleHtmlRender(content);
+            }
+        };
+        
+        // 简单HTML渲染作为备选方案
+        function simpleHtmlRender(content) {
+            // 基本的Markdown行内元素支持
+            let html = escapeHtml(content)
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/`(.*?)`/g, '<code>$1</code>')
+                .replace(/\n/g, '<br>');
+            
+            return `<div class="plaintext-render">${html}</div>`;
+        }
+    }
+    
+    // 触发渲染就绪事件
+    document.dispatchEvent(new Event('renderReady'));
+    isRenderingReady = true;
+    console.log('渲染系统已初始化');
+}
+
+// 安全的HTML转义
+function escapeHtml(unsafe) {
+    if (!unsafe) return '';
+    return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
 // 全局变量 - 需要从页面数据获取
 var currentUsername = '用户';
 var currentNickname = '用户';
@@ -18,30 +67,32 @@ var currentUserColor = '#000000';
 var currentUserBadge = '';
 var currentUserId = 0;
 
-// 等待渲染系统就绪
-function waitForRenderReady(callback) {
-    if (typeof window.renderContent === 'function') {
-        callback();
-        return;
-    }
+// 更健壮的渲染就绪检测
+function waitForRenderSystem(callback) {
+    const checkInterval = setInterval(() => {
+        try {
+            // 检查渲染系统是否真正可用
+            if (typeof window.renderContent === 'function') {
+                // 尝试渲染测试内容
+                window.renderContent('**test**');
+                clearInterval(checkInterval);
+                callback();
+                return;
+            }
+        } catch (e) {
+            console.debug('渲染系统尚未完全就绪:', e);
+        }
+    }, 200);
     
-    if (renderRetryCount >= MAX_RENDER_RETRY) {
-        console.error('渲染系统初始化失败，使用降级方案');
-        window.renderContent = function(content) {
-            return '<pre class="plaintext-render">' + 
-                   content.replace(/[<>&]/g, function(c) {
-                       return {'<': '<', '>': '>', '&': '&amp;'}[c];
-                   }) + 
-                   '</pre>';
-        };
-        callback();
-        return;
-    }
-    
-    renderRetryCount++;
-    setTimeout(function() {
-        waitForRenderReady(callback);
-    }, 1000);
+    // 超时处理
+    setTimeout(() => {
+        clearInterval(checkInterval);
+        if (!isRenderingReady) {
+            console.warn('渲染系统加载超时，强制初始化降级方案');
+            initializeRenderingSystem(); // 使用降级方案
+            callback();
+        }
+    }, 3000);
 }
 
 // 设置模态框
@@ -448,19 +499,10 @@ function createMessageElement(msg, isLocal = false) {
     // 消息内容
     const contentElement = document.createElement('div');
     contentElement.className = 'message-content';
-    
-    // 等待渲染系统就绪
-    if (isRenderingReady) {
-        try {
-            contentElement.innerHTML = window.renderContent(msg.content);
-        } catch (e) {
-            console.error('消息渲染失败:', e);
-            contentElement.innerHTML = `<div class="render-error">${escapeHtml(msg.content)}</div>`;
-        }
-    } else {
-        // 渲染系统未就绪，加入队列
-        messageQueue.push({element: contentElement, content: msg.content});
-    }
+    contentElement.dataset.originalContent = msg.content; // 保存原始内容用于重试
+
+    // 尝试立即渲染
+    tryRenderMessage(contentElement, msg.content);
     
     // 组装
     messageElement.appendChild(userElement);
@@ -482,16 +524,32 @@ function processMessageQueue() {
     messageQueue = [];
 }
 
-// HTML转义
-function escapeHtml(unsafe) {
-    if (!unsafe) return '';
-    return unsafe
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "<")
-        .replace(/>/g, ">")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
+// 安全渲染消息
+function tryRenderMessage(element, content) {
+    if (typeof window.renderContent === 'function') {
+        try {
+            element.innerHTML = window.renderContent(content);
+            return true;
+        } catch (e) {
+            console.error('消息渲染失败:', e);
+        }
+    }
+    
+    // 降级渲染
+    element.innerHTML = `<div class="render-fallback">${escapeHtml(content)}</div>`;
+    return false;
 }
+
+// 重新尝试渲染所有消息
+function retryRenderingAllMessages() {
+    document.querySelectorAll('.message-content').forEach(element => {
+        const content = element.dataset.originalContent;
+        if (content) {
+            tryRenderMessage(element, content);
+        }
+    });
+}
+
 
 // 全局初始化函数
 window.initChat = function() {
@@ -547,8 +605,48 @@ window.initChat = function() {
     }
 };
 
+// 确保所有依赖加载
+function ensureDependenciesLoaded(callback) {
+    const dependencies = [
+        { name: 'socket.io', check: () => typeof io !== 'undefined' },
+        { name: 'marked', check: () => typeof marked !== 'undefined' }
+    ];
+    
+    let loadedCount = 0;
+    const checkAllLoaded = setInterval(() => {
+        dependencies.forEach(dep => {
+            if (dep.check()) {
+                dependencies = dependencies.filter(d => d !== dep);
+                loadedCount++;
+                console.log(`${dep.name} 已加载`);
+            }
+        });
+        
+        if (dependencies.length === 0 || loadedCount >= dependencies.length) {
+            clearInterval(checkAllLoaded);
+            callback();
+        }
+    }, 200);
+    
+    // 超时处理
+    setTimeout(() => {
+        clearInterval(checkAllLoaded);
+        if (dependencies.length > 0) {
+            console.warn('部分依赖加载超时，继续初始化:', 
+                dependencies.map(d => d.name));
+        }
+        callback();
+    }, 5000);
+}
+
 // 全局错误处理
 window.addEventListener('error', function(e) {
+    if (e.message.includes('marked is not defined')) {
+        console.warn('检测到marked未定义，重新初始化渲染系统');
+        initializeRenderingSystem();
+        retryRenderingAllMessages();
+    }
+    // ...其他错误处理
     console.error('全局错误:', e.message, 'at', e.filename, e.lineno);
 });
 
@@ -560,12 +658,17 @@ window.addEventListener('unhandledrejection', function(e) {
 // 页面加载完成后自动初始化
 document.addEventListener('DOMContentLoaded', function() {
     if (document.getElementById('chat-messages')) {
-        waitForRenderReady(function() {
-            if (typeof window.initChat === 'function') {
-                window.initChat();
-            } else {
-                console.error('initChat 函数未定义');
-            }
+        // 1. 首先确保渲染系统就绪
+        waitForRenderSystem(() => {
+            // 2. 确保所有依赖库加载
+            ensureDependenciesLoaded(() => {
+                // 3. 最后初始化聊天系统
+                if (typeof window.initChat === 'function') {
+                    window.initChat();
+                } else {
+                    console.error('initChat 函数未定义');
+                }
+            });
         });
     }
 });
