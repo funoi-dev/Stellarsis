@@ -1,0 +1,343 @@
+{% extends "base.html" %}
+
+{% block head %}
+    <title>用户管理 - 社交平台</title>
+    <style>
+        .admin-container {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 0 15px;
+        }
+        
+        .user-table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .user-table th, .user-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .user-table th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+            color: #495057;
+        }
+        
+        .user-table tr:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .role-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        
+        .role-admin {
+            background-color: #dc3545;
+            color: white;
+        }
+        
+        .role-user {
+            background-color: #28a745;
+            color: white;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 0.9em;
+            transition: background-color 0.2s;
+        }
+        
+        .btn-edit {
+            background-color: #007bff;
+            color: white;
+        }
+        
+        .btn-edit:hover {
+            background-color: #0056b3;
+        }
+        
+        .btn-delete {
+            background-color: #dc3545;
+            color: white;
+        }
+        
+        .btn-delete:hover {
+            background-color: #c82333;
+        }
+        
+        .btn-make-admin {
+            background-color: #28a745;
+            color: white;
+        }
+        
+        .btn-make-admin:hover {
+            background-color: #218838;
+        }
+        
+        .btn-make-user {
+            background-color: #ffc107;
+            color: #212529;
+        }
+        
+        .btn-make-user:hover {
+            background-color: #e0a800;
+        }
+        
+        .search-box {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.1);
+        }
+        
+        .search-box input {
+            padding: 8px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            margin-right: 10px;
+            width: 300px;
+        }
+        
+        .search-box button {
+            padding: 8px 16px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .pagination {
+            margin-top: 20px;
+            text-align: center;
+        }
+        
+        .pagination a {
+            display: inline-block;
+            padding: 8px 12px;
+            margin: 0 4px;
+            text-decoration: none;
+            background-color: #f8f9fa;
+            color: #007bff;
+            border-radius: 4px;
+        }
+        
+        .pagination a:hover {
+            background-color: #e9ecef;
+        }
+        
+        .pagination .current {
+            background-color: #007bff;
+            color: white;
+        }
+        
+        @media (max-width: 768px) {
+            .user-table {
+                font-size: 0.9em;
+            }
+            
+            .user-table th, .user-table td {
+                padding: 8px 10px;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+                gap: 5px;
+            }
+            
+            .btn {
+                margin-bottom: 5px;
+            }
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <div class="admin-container">
+        <h1>用户管理</h1>
+        
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="搜索用户名、昵称...">
+            <button onclick="searchUsers()">搜索</button>
+            <button onclick="clearSearch()">清除</button>
+        </div>
+        
+        <table class="user-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>用户名</th>
+                    <th>昵称</th>
+                    <th>角色</th>
+                    <th>最后活动</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="userTableBody">
+                {% for user in users %}
+                <tr id="user-row-{{ user.id }}">
+                    <td>{{ user.id }}</td>
+                    <td>{{ user.username }}</td>
+                    <td>{{ user.nickname or user.username }}</td>
+                    <td>
+                        <span class="role-badge role-{{ user.role }}">{{ user.role }}</span>
+                    </td>
+                    <td>{{ user.last_seen.strftime('%Y-%m-%d %H:%M:%S') if user.last_seen else '从未' }}</td>
+                    <td class="action-buttons">
+                        {% if user.id != 1 %}
+                            {% if user.role == 'user' %}
+                                <button class="btn btn-make-admin" onclick="changeUserRole({{ user.id }}, 'admin')">设为管理员</button>
+                            {% else %}
+                                <button class="btn btn-make-user" onclick="changeUserRole({{ user.id }}, 'user')">设为用户</button>
+                            {% endif %}
+                            <button class="btn btn-delete" onclick="deleteUser({{ user.id }}, '{{ user.username }}')">删除</button>
+                        {% else %}
+                            <span style="color: #6c757d; font-size: 0.9em;">系统管理员</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+        // 搜索功能
+        function searchUsers() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const rows = document.querySelectorAll('#userTableBody tr');
+            
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                if (text.includes(searchTerm)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+        
+        // 清除搜索
+        function clearSearch() {
+            document.getElementById('searchInput').value = '';
+            const rows = document.querySelectorAll('#userTableBody tr');
+            rows.forEach(row => {
+                row.style.display = '';
+            });
+        }
+        
+        // 监听回车键搜索
+        document.getElementById('searchInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchUsers();
+            }
+        });
+        
+        // 更改用户角色
+        function changeUserRole(userId, newRole) {
+            if (!confirm(`确定要将用户角色更改为 ${newRole} 吗？`)) {
+                return;
+            }
+            
+            fetch(`/api/admin/users/${userId}/role`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    role: newRole
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // 更新页面上的角色显示
+                    const roleCell = document.querySelector(`#user-row-${userId} td:nth-child(4)`);
+                    const actionCell = document.querySelector(`#user-row-${userId} td:nth-child(6)`);
+                    
+                    // 更新角色徽章
+                    roleCell.innerHTML = `<span class="role-badge role-${newRole}">${newRole}</span>`;
+                    
+                    // 更新操作按钮
+                    let newButton = '';
+                    if (userId === 1) {
+                        newButton = '<span style="color: #6c757d; font-size: 0.9em;">系统管理员</span>';
+                    } else {
+                        if (newRole === 'user') {
+                            newButton = `<button class="btn btn-make-admin" onclick="changeUserRole(${userId}, 'admin')">设为管理员</button>`;
+                        } else {
+                            newButton = `<button class="btn btn-make-user" onclick="changeUserRole(${userId}, 'user')">设为用户</button>`;
+                        }
+                        newButton += `<button class="btn btn-delete" onclick="deleteUser(${userId}, '')">删除</button>`;
+                    }
+                    
+                    actionCell.innerHTML = newButton;
+                    
+                    alert(data.message);
+                } else {
+                    alert('操作失败: ' + (data.message || '未知错误'));
+                }
+            })
+            .catch(error => {
+                alert('操作失败: ' + error.message);
+            });
+        }
+        
+        // 删除用户
+        function deleteUser(userId, username) {
+            if (!username) {
+                // 如果没有传入用户名，从DOM中获取
+                const row = document.querySelector(`#user-row-${userId}`);
+                username = row.querySelector('td:nth-child(2)').textContent;
+            }
+            
+            if (!confirm(`确定要删除用户 "${username}" 吗？此操作不可撤销！`)) {
+                return;
+            }
+            
+            fetch(`/api/admin/users/${userId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById(`user-row-${userId}`).remove();
+                    alert(data.message);
+                } else {
+                    alert('删除失败: ' + (data.message || '未知错误'));
+                }
+            })
+            .catch(error => {
+                alert('删除失败: ' + error.message);
+            });
+        }
+    </script>
+{% endblock %}
