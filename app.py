@@ -1335,7 +1335,7 @@ def handle_message(data):
     db_session.add(message)
     db_session.commit()
     
-    # 发送消息给房间内所有人
+    # 发送消息给房间内其他所有人（不包括发送者自己），避免重复显示
     room_name = f"room_{room_id}"
     emit('message', {
         'id': message.id,
@@ -1346,7 +1346,7 @@ def handle_message(data):
         'nickname': current_user.nickname or current_user.username,
         'color': current_user.color,
         'badge': current_user.badge
-    }, room=room_name)
+    }, room=room_name, include_self=False)
 
 @socketio.on('get_online_users')
 def handle_get_online_users(data):
