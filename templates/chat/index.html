@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block head %}
+    <title>即时聊天 - 群星议会</title>
+    <style>
+        .rooms-container {
+            max-width: 800px;
+            margin: 20px auto;
+        }
+        
+        .rooms-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        
+        .room-card {
+            background-color: white;
+            border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            padding: 15px;
+            transition: transform 0.2s;
+        }
+        
+        .room-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        
+        .room-card h3 {
+            margin-top: 0;
+            color: #007bff;
+        }
+        
+        .room-description {
+            color: #666;
+            margin-bottom: 10px;
+        }
+        
+        .room-actions {
+            display: flex;
+            justify-content: flex-end;
+        }
+        
+        .room-actions a {
+            padding: 5px 10px;
+            background-color: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        
+        .room-actions a:hover {
+            background-color: #0069d9;
+        }
+        
+        .section-title {
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        
+        @media (max-width: 600px) {
+            .rooms-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .rooms-container {
+                margin: 15px;
+            }
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <div class="rooms-container">
+        <h1 class="section-title">聊天室</h1>
+        
+        <div class="rooms-grid">
+            {% for room in rooms %}
+            <div class="room-card">
+                <h3>{{ room.name }}</h3>
+                <p class="room-description">{{ room.description }}</p>
+                <div class="room-actions">
+                    <a href="{{ url_for('chat_room', room_id=room.id) }}">进入</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+{% endblock %}

@@ -1,0 +1,304 @@
+{% extends "base.html" %}
+
+{% block head %}
+    <title>文件管理 - 管理面板</title>
+    <style>
+        .file-manager {
+            display: flex;
+            height: calc(100vh - 160px);
+            margin: 20px 0;
+        }
+        
+        .directory-tree {
+            width: 280px;
+            border-right: 1px solid #ddd;
+            padding: 15px;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+        
+        .file-content {
+            flex: 1;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .file-editor {
+            flex: 1;
+            min-height: 300px;
+            margin-bottom: 15px;
+            overflow: hidden;
+        }
+        
+        textarea {
+            width: 100%;
+            height: 100%;
+            font-family: monospace;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+            resize: none;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        
+        .file-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .file-list li {
+            padding: 6px 0 6px 5px;
+            border-bottom: 1px solid #eee;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .file-list li:hover {
+            background-color: #f5f5f5;
+            border-radius: 4px;
+        }
+        
+        .file-icon {
+            margin-right: 6px;
+            width: 16px;
+            text-align: center;
+            display: inline-block;
+        }
+        
+        .directory {
+            font-weight: bold;
+            color: #0066cc;
+        }
+        
+        .breadcrumb {
+            padding: 8px 0;
+            font-size: 0.9em;
+            color: #666;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .breadcrumb a {
+            color: #0066cc;
+            text-decoration: none;
+        }
+        
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+        
+        .file-actions {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        button {
+            padding: 6px 12px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        button:hover {
+            background-color: #0069d9;
+        }
+        
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        
+        .status-message {
+            padding: 8px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            display: none;
+        }
+        
+        .status-success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        
+        .status-error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        
+        @media (max-width: 768px) {
+            .file-manager {
+                flex-direction: column;
+                height: auto;
+            }
+            
+            .directory-tree {
+                width: 100%;
+                border-right: none;
+                border-bottom: 1px solid #ddd;
+                height: 200px;
+            }
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <div class="admin-container">
+        <h1>文件管理</h1>
+        <p>注意：此功能仅用于开发环境。生产环境请使用正规部署方式。</p>
+        
+        <div class="file-manager">
+            <div class="directory-tree">
+                <div class="breadcrumb">
+                    {% set path_parts = current_path.split('/') %}
+                    {% for i in range(path_parts|length) %}
+                        {% if i == 0 and path_parts[0] == '' %}
+                            <a href="{{ url_for('file_manager_view') }}">/</a>
+                        {% else %}
+                            {% set part_path = path_parts[0:i+1]|join('/') %}
+                            {% if i < path_parts|length-1 %}
+                                <a href="{{ url_for('file_manager_view', path=part_path) }}">{{ path_parts[i] }}/</a>
+                            {% else %}
+                                {{ path_parts[i] }}
+                            {% endif %}
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                
+                <ul class="file-list">
+                    {% if current_path != '' %}
+                        <li>
+                            <a href="{{ url_for('file_manager_view', path=current_path.rsplit('/', 1)[0]) if '/' in current_path else url_for('file_manager_view') }}">
+                                <span class="file-icon">📁</span> ..
+                            </a>
+                        </li>
+                    {% endif %}
+                    
+                    {% for item in items %}
+                    <li>
+                        {% if item.is_dir %}
+                            <a href="{{ url_for('file_manager_view', path=item.path) }}">
+                                <span class="file-icon directory">📁</span> {{ item.name }}/
+                            </a>
+                        {% else %}
+                            <a href="#" onclick="loadFile('{{ item.path }}')">
+                                <span class="file-icon">📄</span> {{ item.name }}
+                            </a>
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            
+            <div class="file-content">
+                <h2 id="current-file-path">请选择文件</h2>
+                
+                <div class="file-actions">
+                    <button id="save-file" disabled>保存文件</button>
+                    <button id="reload-file" disabled>重新加载</button>
+                </div>
+                
+                <div class="status-message" id="status-message"></div>
+                
+                <div class="file-editor">
+                    <textarea id="file-content" disabled>请选择一个文件进行编辑</textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+        let currentFilePath = '';
+        
+        function showStatus(message, isSuccess = true) {
+            const statusElement = document.getElementById('status-message');
+            statusElement.textContent = message;
+            statusElement.className = 'status-message ' + (isSuccess ? 'status-success' : 'status-error');
+            statusElement.style.display = 'block';
+            
+            // 3秒后隐藏
+            setTimeout(() => {
+                statusElement.style.display = 'none';
+            }, 3000);
+        }
+        
+        function loadFile(path) {
+            currentFilePath = path;
+            document.getElementById('current-file-path').textContent = path;
+            
+            const textarea = document.getElementById('file-content');
+            textarea.value = '加载中...';
+            textarea.disabled = true;
+            document.getElementById('save-file').disabled = true;
+            document.getElementById('reload-file').disabled = false;
+            
+            fetch("{{ url_for('read_file_view') }}?path=" + encodeURIComponent(path))
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP错误! 状态: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        textarea.value = data.content;
+                        textarea.disabled = false;
+                        document.getElementById('save-file').disabled = false;
+                        showStatus('文件加载成功');
+                    } else {
+                        throw new Error(data.message || '未知错误');
+                    }
+                })
+                .catch(error => {
+                    console.error('加载文件失败:', error);
+                    textarea.value = '加载文件失败: ' + error.message;
+                    textarea.disabled = true;
+                    document.getElementById('save-file').disabled = true;
+                    showStatus('加载失败: ' + error.message, false);
+                });
+        }
+        
+        document.getElementById('save-file').addEventListener('click', function() {
+            const content = document.getElementById('file-content').value;
+            
+            fetch("{{ url_for('write_file_view') }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: 'path=' + encodeURIComponent(currentFilePath) + 
+                      '&content=' + encodeURIComponent(content)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showStatus('文件已保存');
+                } else {
+                    throw new Error(data.message || '保存失败');
+                }
+            })
+            .catch(error => {
+                console.error('保存文件失败:', error);
+                showStatus('保存失败: ' + error.message, false);
+            });
+        });
+        
+        document.getElementById('reload-file').addEventListener('click', function() {
+            if (currentFilePath) {
+                loadFile(currentFilePath);
+            }
+        });
+    </script>
+{% endblock %}

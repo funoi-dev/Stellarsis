@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+
+{% block head %}
+    <title>{{ thread.title }} - 帖子详情</title>
+    <style>
+        .thread {
+            background-color: white;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .thread-header {
+            border-bottom: 1px solid #eee;
+            padding-bottom: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .thread-title {
+            font-size: 1.5em;
+            margin: 0 0 10px 0;
+        }
+        
+        .thread-user {
+            display: flex;
+            align-items: center;
+        }
+        
+        .user-badge {
+            display: inline-block;
+            padding: 2px 5px;
+            margin-right: 5px;
+            color: white;
+            border-radius: 3px;
+            font-size: 0.8em;
+        }
+        
+        .user-name {
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        
+        .thread-meta {
+            color: #666;
+            font-size: 0.9em;
+        }
+        
+        .thread-content {
+            line-height: 1.6;
+            padding: 10px 0;
+        }
+        
+        .thread-content p {
+            margin: 10px 0;
+        }
+        
+        .thread-content pre {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+        
+        .thread-content code {
+            background-color: #f5f5f5;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        
+        .replies {
+            margin-top: 30px;
+        }
+        
+        .reply {
+            background-color: white;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .reply-user {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .reply-time {
+            margin-left: auto;
+            color: #666;
+            font-size: 0.9em;
+        }
+        
+        .reply-content {
+            line-height: 1.6;
+        }
+        
+        .reply-content p {
+            margin: 8px 0;
+        }
+        
+        #reply-form {
+            background-color: white;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            padding: 20px;
+            margin-top: 20px;
+        }
+        
+        #reply-form textarea {
+            width: 100%;
+            min-height: 100px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            resize: vertical;
+            margin-bottom: 10px;
+        }
+        
+        .render-error {
+            color: #dc3545;
+            background-color: #f8d7da;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 5px 0;
+        }
+        
+        .plaintext-render {
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        
+        .katex {
+            font-size: 1.15em;
+        }
+        
+        .katex-block {
+            text-align: center;
+            padding: 10px 0;
+            overflow-x: auto;
+        }
+        
+        .katex-error {
+            color: #dc3545;
+            background-color: #f8d7da;
+            padding: 5px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        
+        @media (max-width: 768px) {
+            .thread {
+                padding: 15px;
+            }
+            
+            .thread-title {
+                font-size: 1.3em;
+            }
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <div class="thread">
+        <div class="thread-header">
+            <h1 class="thread-title">{{ thread.title }}</h1>
+            <div class="thread-user">
+                {% if thread.user.badge %}
+                <span class="user-badge" style="background-color:{{ thread.user.color }}">{{ thread.user.badge }}</span>
+                {% endif %}
+                <span class="user-name" style="color:{{ thread.user.color }}">{{ thread.user.nickname or thread.user.username }}</span>
+                <span class="thread-meta">{{ thread.timestamp.strftime('%Y-%m-%d %H:%M') }}</span>
+            </div>
+        </div>
+        <div class="thread-content" data-content="{{ thread.content|safe }}">
+            <!-- 内容将由JS渲染 -->
+        </div>
+    </div>
+    
+    <div class="replies">
+        <h2>回复 ({{ replies|length }})</h2>
+        
+        {% for reply in replies %}
+        <div class="reply">
+            <div class="reply-user">
+                {% if reply.user.badge %}
+                <span class="user-badge" style="background-color:{{ reply.user.color }}">{{ reply.user.badge }}</span>
+                {% endif %}
+                <span class="user-name" style="color:{{ reply.user.color }}">{{ reply.user.nickname or reply.user.username }}</span>
+                <span class="reply-time">{{ reply.timestamp.strftime('%Y-%m-%d %H:%M') }}</span>
+            </div>
+            <div class="reply-content" data-content="{{ reply.content|safe }}">
+                <!-- 内容将由JS渲染 -->
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <form id="reply-form" data-thread-id="{{ thread.id }}">
+        <textarea name="content" placeholder="输入回复内容...（支持Markdown和LaTeX）"></textarea>
+        <button type="submit">回复</button>
+    </form>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script src="{{ url_for('static', filename='js/forum.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+
+{% block head %}
+    <title>个人资料 - 群星议会</title>
+    <style>
+        .profile-container {
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: white;
+            border-radius: 4px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .profile-container h2 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        
+        .color-preview {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            vertical-align: middle;
+            margin-left: 10px;
+            border: 1px solid #ddd;
+        }
+        
+        .form-group .error {
+            color: #dc3545;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+        
+        button {
+            width: 100%;
+            padding: 10px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        button:hover {
+            background-color: #0069d9;
+        }
+        
+        .current-settings {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        
+        .current-settings h3 {
+            margin-top: 0;
+        }
+        
+        .sample-text {
+            margin-top: 10px;
+            padding: 10px;
+            border: 1px solid #eee;
+            border-radius: 4px;
+        }
+        
+        @media (max-width: 600px) {
+            .profile-container {
+                margin: 20px 15px;
+                padding: 15px;
+            }
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <div class="profile-container">
+        <h2>个人资料设置</h2>
+        
+        <div class="current-settings">
+            <h3>当前设置预览</h3>
+            <p>在聊天中，您的消息会显示为:</p>
+            <div class="sample-text">
+                <span style="color: {{ current_user.color }};">
+                    {% if current_user.badge %}<span style="background-color: {{ current_user.color }}; color: white; padding: 2px 5px; border-radius: 3px; margin-right: 5px;">{{ current_user.badge }}</span>{% endif %}
+                    {% if current_user.nickname %}{{ current_user.nickname }}{% else %}{{ current_user.username }}{% endif %}:
+                </span> 您好，这是一个测试消息
+            </div>
+        </div>
+        
+        <form method="POST" action="{{ url_for('profile') }}">
+            {{ form.hidden_tag() }}
+            
+            <div class="form-group">
+                {{ form.nickname.label }}
+                {{ form.nickname(class="form-control", placeholder="留空使用用户名") }}
+                {% for error in form.nickname.errors %}
+                    <div class="error">{{ error }}</div>
+                {% endfor %}
+            </div>
+            
+            <div class="form-group">
+                {{ form.color.label }} (如 #FF0000)
+                <div style="display: flex; align-items: center;">
+                    {{ form.color(class="form-control", type="text", id="color-input", placeholder="#000000") }}
+                    <div class="color-preview" id="color-preview" style="background-color: {{ current_user.color }};"></div>
+                </div>
+                {% for error in form.color.errors %}
+                    <div class="error">{{ error }}</div>
+                {% endfor %}
+            </div>
+            
+            <div class="form-group">
+                {{ form.badge.label }} (如 "VIP", 留空则不显示)
+                {{ form.badge(class="form-control", placeholder="如: VIP, MOD") }}
+                {% for error in form.badge.errors %}
+                    <div class="error">{{ error }}</div>
+                {% endfor %}
+            </div>
+            
+            <button type="submit">保存设置</button>
+        </form>
+    </div>
+    
+    <script>
+        // 实时预览颜色选择
+        document.addEventListener('DOMContentLoaded', function() {
+            const colorInput = document.getElementById('color-input');
+            const colorPreview = document.getElementById('color-preview');
+            
+            if (colorInput && colorPreview) {
+                colorInput.addEventListener('input', function() {
+                    colorPreview.style.backgroundColor = colorInput.value;
+                });
+            }
+        });
+    </script>
+{% endblock %}

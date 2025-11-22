@@ -1,0 +1,331 @@
+{% extends "base.html" %}
+
+{% block head %}
+    <title>{{ room.name }} - 聊天室</title>
+    <style>
+        #chat-container {
+            display: flex;
+            flex-direction: column;
+            height: 70vh;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        #chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+            background-color: #f9f9f9;
+        }
+        
+        .chat-message {
+            margin-bottom: 15px;
+            padding: 8px 10px;
+            border-radius: 4px;
+            background-color: white;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+        
+        .local-message {
+            background-color: #e6f7ff;
+        }
+        
+        .message-user {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        .message-badge {
+            display: inline-block;
+            padding: 2px 5px;
+            margin-right: 5px;
+            color: white;
+            border-radius: 3px;
+            font-size: 0.8em;
+        }
+        
+        .message-time {
+            margin-left: auto;
+            font-weight: normal;
+            font-size: 0.85em;
+            color: #666;
+            font-style: italic;
+        }
+        
+        .message-content {
+            line-height: 1.5;
+        }
+        
+        .message-content p {
+            margin: 8px 0;
+        }
+        
+        .message-content pre {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+        
+        .message-content code {
+            background-color: #f5f5f5;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        
+        .chat-status {
+            text-align: center;
+            color: #666;
+            font-style: italic;
+            margin: 10px 0;
+            padding: 5px;
+            background-color: #f0f0f0;
+            border-radius: 4px;
+        }
+        
+        #message-input {
+            display: flex;
+            padding: 10px;
+            border-top: 1px solid #eee;
+            background-color: white;
+        }
+        
+        #message-text {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            resize: none;
+            min-height: 40px;
+            max-height: 150px;
+        }
+        
+        #send-button {
+            margin-left: 10px;
+            padding: 0 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        #send-button:hover {
+            background-color: #0069d9;
+        }
+        
+        .online-users {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            padding: 8px 10px;
+            background-color: #f0f0f0;
+            border-radius: 4px;
+        }
+        
+        /* 模态框样式 */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+        
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 500px;
+            border-radius: 4px;
+        }
+        
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .close:hover {
+            color: black;
+        }
+        
+        .online-user-item {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .user-badge {
+            display: inline-block;
+            padding: 2px 5px;
+            margin-right: 5px;
+            color: white;
+            border-radius: 3px;
+            font-size: 0.8em;
+        }
+        
+        .user-name {
+            font-weight: bold;
+        }
+        
+        .render-error {
+            color: #dc3545;
+            background-color: #f8d7da;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 5px 0;
+        }
+        
+        .plaintext-render {
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        
+        .katex {
+            font-size: 1.15em;
+        }
+        
+        .katex-block {
+            text-align: center;
+            padding: 10px 0;
+            overflow-x: auto;
+        }
+        
+        .katex-error {
+            color: #dc3545;
+            background-color: #f8d7da;
+            padding: 5px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        
+        @media (max-width: 768px) {
+            #chat-container {
+                height: 60vh;
+            }
+            
+            #message-text {
+                font-size: 16px;
+            }
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <h1>{{ room.name }}</h1>
+    <p>{{ room.description }}</p>
+    
+    <div class="online-users">
+        在线人数: <span id="online-count">加载中...</span>
+        <button id="show-online-list">查看在线名单</button>
+    </div>
+    
+    <div id="online-list-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>在线用户</h2>
+            <ul id="online-users-list"></ul>
+        </div>
+    </div>
+    
+    <div id="chat-container">
+        <div id="chat-messages"></div>
+        <div id="message-input">
+            <textarea id="message-text" placeholder="输入消息...（支持Markdown和LaTeX）" rows="2"></textarea>
+            <button id="send-button">发送</button>
+        </div>
+    </div>
+    
+    <!-- 传递房间数据给JS -->
+    <script type="application/json" id="chat-room-data">
+        {
+            "room_id": {{ room.id }},
+            "user_id": {{ current_user.id }},
+            "username": "{{ current_user.username }}",
+            "nickname": "{{ current_user.nickname or current_user.username }}",
+            "color": "{{ current_user.color }}",
+            "badge": "{{ current_user.badge }}"
+        }
+    </script>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    
+    <!-- 确保socket.io加载 -->
+    <script>
+        // 添加socket.io加载状态跟踪
+        document.chatIoLoaded = false;
+        document.chatIoCallbacks = [];
+        
+        function onSocketIoLoaded() {
+            document.chatIoLoaded = true;
+            document.chatIoCallbacks.forEach(cb => cb());
+            document.chatIoCallbacks = [];
+        }
+        
+        function waitForSocketIo(callback) {
+            if (document.chatIoLoaded) {
+                callback();
+            } else {
+                document.chatIoCallbacks.push(callback);
+            }
+        }
+        
+        // 确保socket.io加载
+        if (typeof io === 'undefined') {
+            console.log('加载 socket.io...');
+            var script = document.createElement('script');
+            script.src = "{{ url_for('static', filename='js/vendor/socket.io.min.js') }}";
+            script.onload = function() {
+                console.log('socket.io 已加载');
+                onSocketIoLoaded();
+            };
+            script.onerror = function() {
+                console.error('socket.io 加载失败');
+                document.body.classList.add('no-websocket');
+                onSocketIoLoaded(); // 继续执行降级方案
+            };
+            document.head.appendChild(script);
+        } else {
+            onSocketIoLoaded();
+        }
+    </script>
+    
+    <!-- 确保 chat.js 在 socket.io 之后加载 -->
+    <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+    
+    <!-- 初始化聊天 -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            waitForSocketIo(function() {
+                console.log('准备初始化聊天系统');
+                // 等待渲染系统就绪
+                function initWhenReady() {
+                    if (typeof window.renderContent === 'function' && typeof window.initChat === 'function') {
+                        console.log('所有依赖已就绪，调用 initChat');
+                        window.initChat();
+                    } else {
+                        console.log('等待依赖加载...');
+                        setTimeout(initWhenReady, 500);
+                    }
+                }
+                
+                initWhenReady();
+            });
+        });
+    </script>
+{% endblock %}

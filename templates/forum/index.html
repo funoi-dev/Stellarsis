@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block head %}
+    <title>贴吧 - 群星议会</title>
+    <style>
+        .forum-container {
+            max-width: 1000px;
+            margin: 20px auto;
+        }
+        
+        .section-card {
+            background-color: white;
+            border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .section-title {
+            margin: 0;
+            color: #007bff;
+        }
+        
+        .section-description {
+            color: #666;
+            margin-bottom: 15px;
+        }
+        
+        .threads-list {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .thread-item {
+            padding: 12px 0;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .thread-item:last-child {
+            border-bottom: none;
+        }
+        
+        .thread-title {
+            font-size: 1.1em;
+            margin: 0 0 5px 0;
+        }
+        
+        .thread-title a {
+            color: #212529;
+            text-decoration: none;
+        }
+        
+        .thread-title a:hover {
+            text-decoration: underline;
+        }
+        
+        .thread-meta {
+            display: flex;
+            color: #666;
+            font-size: 0.9em;
+        }
+        
+        .thread-meta span {
+            margin-right: 15px;
+        }
+        
+        .new-thread-btn {
+            display: inline-block;
+            padding: 8px 15px;
+            background-color: #28a745;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        
+        .new-thread-btn:hover {
+            background-color: #218838;
+        }
+        
+        @media (max-width: 600px) {
+            .forum-container {
+                margin: 15px;
+            }
+            
+            .thread-meta {
+                flex-direction: column;
+            }
+            
+            .thread-meta span {
+                margin-right: 0;
+                margin-bottom: 3px;
+            }
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <div class="forum-container">
+        <h1>贴吧</h1>
+        
+        <a href="#" class="new-thread-btn">发新帖</a>
+        
+        {% for section in sections %}
+        <div class="section-card">
+            <div class="section-header">
+                <h2 class="section-title">{{ section.name }}</h2>
+                <a href="{{ url_for('forum_section', section_id=section.id) }}" class="view-all">查看全部</a>
+            </div>
+            <p class="section-description">{{ section.description }}</p>
+            
+            <ul class="threads-list">
+                {% for thread in section.threads[:5] %}
+                <li class="thread-item">
+                    <h3 class="thread-title"><a href="{{ url_for('forum_thread', thread_id=thread.id) }}">{{ thread.title }}</a></h3>
+                    <div class="thread-meta">
+                        <span>作者: {{ thread.user.nickname or thread.user.username }}</span>
+                        <span>时间: {{ thread.timestamp.strftime('%Y-%m-%d %H:%M') }}</span>
+                        <span>回复: {{ thread.replies.count() }}</span>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endfor %}
+    </div>
+{% endblock %}
