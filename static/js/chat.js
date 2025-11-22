@@ -9,6 +9,7 @@ let messageQueue = [];
 let isRenderingReady = false;
 let renderRetryCount = 0;
 const MAX_RENDER_RETRY = 3;
+let processedMessageIds = new Set();
 
 // 全局变量 - 需要从页面数据获取
 var currentUsername = '用户';
@@ -288,22 +289,22 @@ function sendMessage() {
     // 清空输入框
     messageInput.value = '';
     
-    // 本地预览
-    const localMessage = {
-        id: 'temp-' + Date.now(),
-        content: message,
-        timestamp: new Date().toISOString(),
-        user_id: currentUserId,
-        username: currentUsername,
-        nickname: currentNickname,
-        color: currentUserColor,
-        badge: currentUserBadge
-    };
-    
-    addMessageToUI(localMessage, true);
-    
     // 通过WebSocket发送
     if (chatSocket && chatSocket.connected) {
+        // 本地预览
+        const localMessage = {
+            id: 'temp-' + Date.now(),
+            content: message,
+            timestamp: new Date().toISOString(),
+            user_id: currentUserId,
+            username: currentUsername,
+            nickname: currentNickname,
+            color: currentUserColor,
+            badge: currentUserBadge
+        };
+        
+        addMessageToUI(localMessage, true);
+        
         chatSocket.emit('send_message', {
             room_id: roomId,
             message: message
@@ -325,6 +326,23 @@ function sendMessage() {
                 throw new Error('发送消息失败');
             }
             return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                // 消息发送成功后，添加到UI
+                const sentMessage = {
+                    id: 'sent-' + Date.now(),
+                    content: message,
+                    timestamp: new Date().toISOString(),
+                    user_id: currentUserId,
+                    username: currentUsername,
+                    nickname: currentNickname,
+                    color: currentUserColor,
+                    badge: currentUserBadge
+                };
+                
+                addMessageToUI(sentMessage, true);
+            }
         })
         .catch(error => {
             console.error('发送消息失败:', error);
@@ -356,10 +374,21 @@ function setupMessageInput() {
     }
 }
 
+
 // 添加消息到UI
 function addMessageToUI(msg, isLocal = false) {
     const messagesContainer = document.getElementById('chat-messages');
     if (!messagesContainer) return;
+    
+    // 检查是否已经处理过这个消息（避免重复显示）
+    if (msg.id && processedMessageIds.has(msg.id)) {
+        return;
+    }
+    
+    // 添加到已处理集合
+    if (msg.id) {
+        processedMessageIds.add(msg.id);
+    }
     
     // 创建消息元素
     const messageElement = createMessageElement(msg, isLocal);
