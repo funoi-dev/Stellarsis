@@ -1,1 +1,1 @@
-Nothing should be ignored based on the provided file changes, as they only include source files (`app.py`, `static/js/chat.js`) without any build artifacts, dependencies, or temporary files that would warrant adding to `.gitignore`.
+Nothing needs to be added to .gitignore since the changes only include source files (.py and .html) without any build artifacts, dependencies, or temporary files that should be ignored.
