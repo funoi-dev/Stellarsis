@@ -95,6 +95,11 @@ class User(UserMixin, Base):
     color = Column(String(7), default='#000000')
     badge = Column(String(32), default='')
     last_seen = Column(DateTime, default=datetime.utcnow)
+    role = Column(String(20), default='user')  # 新增权限字段：user, admin
+    
+    def is_admin(self):
+        """检查用户是否为管理员"""
+        return self.role == 'admin'
     
     def set_password(self, password):
         # 实际应用中应使用安全的哈希算法
@@ -157,6 +162,31 @@ class ForumReply(Base):
 
 # 创建表
 Base.metadata.create_all(bind=engine)
+
+# 检查并更新数据库结构
+def update_database_schema():
+    """检查并更新数据库结构，添加缺失的列"""
+    try:
+        conn = sqlite3.connect(app.config['SQLALCHEMY_DATABASE_URI'].replace('sqlite:///', ''))
+        cursor = conn.cursor()
+        
+        # 检查用户表是否已有role列
+        cursor.execute("PRAGMA table_info(users);")
+        columns = [column[1] for column in cursor.fetchall()]
+        
+        if 'role' not in columns:
+            # 添加role列，默认为'user'
+            cursor.execute("ALTER TABLE users ADD COLUMN role VARCHAR(20) DEFAULT 'user';")
+            conn.commit()
+            logger.info("已添加role列到users表")
+        
+        conn.close()
+        logger.info("数据库结构更新完成")
+    except Exception as e:
+        logger.error(f"数据库结构更新失败: {str(e)}")
+
+# 应用启动时更新数据库结构
+update_database_schema()
 
 # 用户加载函数
 @login_manager.user_loader
@@ -536,7 +566,7 @@ def reply_post():
 @app.route('/admin')
 @login_required
 def admin_index():
-    if current_user.id != 1:  # 只有ID为1的管理员才能访问
+    if not current_user.is_admin():  # 只有管理员才能访问
         abort(403)
     
     # 获取统计信息
@@ -566,7 +596,7 @@ def admin_index():
 @app.route('/admin/users')
 @login_required
 def user_management():
-    if current_user.id != 1:
+    if not current_user.is_admin():
         abort(403)
     
     users = db_session.query(User).all()
@@ -575,7 +605,7 @@ def user_management():
 @app.route('/admin/chat')
 @login_required
 def chat_management():
-    if current_user.id != 1:
+    if not current_user.is_admin():
         abort(403)
     
     rooms = db_session.query(ChatRoom).all()
@@ -584,7 +614,7 @@ def chat_management():
 @app.route('/admin/forum')
 @login_required
 def forum_management():
-    if current_user.id != 1:
+    if not current_user.is_admin():
         abort(403)
     
     sections = db_session.query(ForumSection).all()
@@ -593,7 +623,7 @@ def forum_management():
 @app.route('/admin/file_manager')
 @login_required
 def file_manager_view():
-    if current_user.id != 1:
+    if not current_user.is_admin():
         abort(403)
     
     path = request.args.get('path', '')
@@ -609,7 +639,7 @@ def file_manager_view():
 @app.route('/admin/file_manager/read')
 @login_required
 def read_file_view():
-    if current_user.id != 1:
+    if not current_user.is_admin():
         abort(403)
     
     path = request.args.get('path', '')
@@ -640,7 +670,7 @@ def read_file_view():
 @app.route('/admin/file_manager/write', methods=['POST'])
 @login_required
 def write_file_view():
-    if current_user.id != 1:
+    if not current_user.is_admin():
         abort(403)
     
     path = request.form.get('path', '')
@@ -681,7 +711,7 @@ def write_file_view():
 @app.route('/api/admin/system-info')
 @login_required
 def get_system_info():
-    if current_user.id != 1:
+    if not current_user.is_admin():
         return jsonify(success=False, message="权限不足"), 403
     
     try:
@@ -712,7 +742,7 @@ def get_system_info():
 @app.route('/api/admin/clear-cache', methods=['POST'])
 @login_required
 def clear_cache():
-    if current_user.id != 1:
+    if not current_user.is_admin():
         return jsonify(success=False, message="权限不足"), 403
     
     try:
@@ -728,7 +758,7 @@ def clear_cache():
 @app.route('/api/admin/restart', methods=['POST'])
 @login_required
 def restart_server():
-    if current_user.id != 1:
+    if not current_user.is_admin():
         return jsonify(success=False, message="权限不足"), 403
     
     try:
@@ -749,7 +779,7 @@ def restart_server():
 @app.route('/api/admin/backup-database', methods=['POST'])
 @login_required
 def backup_database():
-    if current_user.id != 1:
+    if not current_user.is_admin():
         return jsonify(success=False, message="权限不足"), 403
     
     try:
@@ -772,7 +802,7 @@ def backup_database():
 @app.route('/api/admin/system-log')
 @login_required
 def get_system_log():
-    if current_user.id != 1:
+    if not current_user.is_admin():
         return jsonify(success=False, message="权限不足"), 403
     
     try:
@@ -793,7 +823,7 @@ def get_system_log():
 @app.route('/api/admin/optimize-database', methods=['POST'])
 @login_required
 def optimize_database():
-    if current_user.id != 1:
+    if not current_user.is_admin():
         return jsonify(success=False, message="权限不足"), 403
     
     try:
@@ -813,7 +843,7 @@ def optimize_database():
 @app.route('/api/admin/shutdown', methods=['POST'])
 @login_required
 def shutdown_server():
-    if current_user.id != 1:
+    if not current_user.is_admin():
         return jsonify(success=False, message="权限不足"), 403
     
     try:
@@ -838,7 +868,7 @@ def shutdown_server():
 @app.route('/api/admin/users/<int:user_id>', methods=['PUT'])
 @login_required
 def update_user(user_id):
-    if current_user.id != 1:
+    if not current_user.is_admin():
         return jsonify(success=False, message="权限不足"), 403
     
     try:
@@ -865,7 +895,7 @@ def update_user(user_id):
 @app.route('/api/admin/users/<int:user_id>', methods=['DELETE'])
 @login_required
 def delete_user(user_id):
-    if current_user.id != 1:
+    if not current_user.is_admin():
         return jsonify(success=False, message="权限不足"), 403
     
     try:
@@ -893,7 +923,7 @@ def delete_user(user_id):
 @app.route('/api/admin/chat/rooms/<int:room_id>', methods=['PUT'])
 @login_required
 def update_chat_room(room_id):
-    if current_user.id != 1:
+    if not current_user.is_admin():
         return jsonify(success=False, message="权限不足"), 403
     
     try:
@@ -916,7 +946,7 @@ def update_chat_room(room_id):
 @app.route('/api/admin/chat/rooms/<int:room_id>', methods=['DELETE'])
 @login_required
 def delete_chat_room(room_id):
-    if current_user.id != 1:
+    if not current_user.is_admin():
         return jsonify(success=False, message="权限不足"), 403
     
     try:
@@ -941,7 +971,7 @@ def delete_chat_room(room_id):
 @app.route('/api/admin/chat/messages', methods=['DELETE'])
 @login_required
 def clear_chat_messages():
-    if current_user.id != 1:
+    if not current_user.is_admin():
         return jsonify(success=False, message="权限不足"), 403
     
     try:
@@ -968,14 +998,43 @@ def clear_chat_messages():
     except Exception as e:
         return jsonify(success=False, message=f"清除聊天消息失败: {str(e)}"), 500
 
+@app.route('/api/admin/users/<int:user_id>/role', methods=['PUT'])
+@login_required
+def update_user_role(user_id):
+    if not current_user.is_admin():
+        return jsonify(success=False, message="权限不足"), 403
+    
+    try:
+        user = db_session.query(User).get(user_id)
+        if not user:
+            return jsonify(success=False, message="用户不存在"), 404
+        
+        data = request.get_json()
+        new_role = data.get('role', '').lower()
+        
+        if new_role not in ['user', 'admin']:
+            return jsonify(success=False, message="角色必须是 'user' 或 'admin'"), 400
+        
+        # 防止降级超级管理员（ID为1的用户）
+        if user.id == 1 and new_role != 'admin':
+            return jsonify(success=False, message="不能修改超级管理员的角色"), 400
+        
+        old_role = user.role
+        user.role = new_role
+        db_session.commit()
+        
+        log_admin_action(f"修改用户 {user.username} 的角色: {old_role} -> {new_role}")
+        return jsonify(success=True, message=f"用户 {user.username} 的角色已更新为 {new_role}")
+    except Exception as e:
+        logger.error(f"更新用户角色失败: {str(e)}")
+        return jsonify(success=False, message=f"更新用户角色失败: {str(e)}"), 500
+
 # 贴吧管理相关路由
 @app.route('/api/admin/forum/sections/<int:section_id>', methods=['PUT'])
 @login_required
 def update_forum_section(section_id):
-    if current_user.id != 1:
+    if not current_user.is_admin():
         return jsonify(success=False, message="权限不足"), 403
-    
-    try:
         section = db_session.query(ForumSection).get(section_id)
         if not section:
             return jsonify(success=False, message="贴吧分区不存在"), 404
@@ -995,7 +1054,7 @@ def update_forum_section(section_id):
 @app.route('/api/admin/forum/sections/<int:section_id>', methods=['DELETE'])
 @login_required
 def delete_forum_section(section_id):
-    if current_user.id != 1:
+    if not current_user.is_admin():
         return jsonify(success=False, message="权限不足"), 403
     
     try:
@@ -1023,7 +1082,7 @@ def delete_forum_section(section_id):
 @app.route('/api/admin/forum/posts/<int:post_id>', methods=['DELETE'])
 @login_required
 def delete_forum_post(post_id):
-    if current_user.id != 1:
+    if not current_user.is_admin():
         return jsonify(success=False, message="权限不足"), 403
     
     try:
