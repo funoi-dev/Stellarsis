@@ -1029,6 +1029,168 @@ def update_user_role(user_id):
         logger.error(f"更新用户角色失败: {str(e)}")
         return jsonify(success=False, message=f"更新用户角色失败: {str(e)}"), 500
 
+
+@app.route('/api/admin/users', methods=['POST'])
+@login_required
+def create_user():
+    if not current_user.is_admin():
+        return jsonify(success=False, message="权限不足"), 403
+
+    try:
+        data = request.get_json()
+        username = data.get('username', '').strip()
+        password = data.get('password', '').strip()
+        nickname = data.get('nickname', '').strip()
+        color = data.get('color', '#000000')
+        badge = data.get('badge', '').strip()
+        role = data.get('role', 'user').lower()
+
+        # 验证必填字段
+        if not username or len(username) < 3:
+            return jsonify(success=False, message="用户名至少3个字符"), 400
+        
+        if not password or len(password) < 6:
+            return jsonify(success=False, message="密码至少6个字符"), 400
+
+        # 检查用户名是否已存在
+        existing_user = db_session.query(User).filter_by(username=username).first()
+        if existing_user:
+            return jsonify(success=False, message="用户名已存在"), 400
+
+        # 验证角色
+        if role not in ['user', 'admin']:
+            return jsonify(success=False, message="角色必须是 'user' 或 'admin'"), 400
+
+        # 创建新用户
+        new_user = User(
+            username=username,
+            nickname=nickname,
+            color=color,
+            badge=badge,
+            role=role
+        )
+        new_user.set_password(password)
+        
+        db_session.add(new_user)
+        db_session.commit()
+
+        log_admin_action(f"创建了新用户: {username}")
+        return jsonify(success=True, message=f"用户 {username} 创建成功", user_id=new_user.id)
+    except Exception as e:
+        logger.error(f"创建用户失败: {str(e)}")
+        return jsonify(success=False, message=f"创建用户失败: {str(e)}"), 500
+
+
+# 聊天管理相关路由
+@app.route('/api/admin/chat/rooms', methods=['GET'])
+@login_required
+def get_chat_rooms():
+    if not current_user.is_admin():
+        return jsonify(success=False, message="权限不足"), 403
+
+    try:
+        rooms = db_session.query(ChatRoom).all()
+        rooms_data = []
+        for room in rooms:
+            rooms_data.append({
+                'id': room.id,
+                'name': room.name,
+                'description': room.description
+            })
+        
+        return jsonify(success=True, rooms=rooms_data)
+    except Exception as e:
+        logger.error(f"获取聊天室列表失败: {str(e)}")
+        return jsonify(success=False, message=f"获取聊天室列表失败: {str(e)}"), 500
+
+
+@app.route('/api/admin/chat/rooms/<int:room_id>', methods=['PUT'])
+@login_required
+def update_chat_room(room_id):
+    if not current_user.is_admin():
+        return jsonify(success=False, message="权限不足"), 403
+
+    try:
+        room = db_session.query(ChatRoom).get(room_id)
+        if not room:
+            return jsonify(success=False, message="聊天室不存在"), 404
+
+        data = request.get_json()
+        name = data.get('name', '').strip()
+        description = data.get('description', '').strip()
+
+        if not name:
+            return jsonify(success=False, message="聊天室名称不能为空"), 400
+
+        old_name = room.name
+        room.name = name
+        room.description = description
+        db_session.commit()
+
+        log_admin_action(f"修改聊天室 {old_name} -> {name}")
+        return jsonify(success=True, message=f"聊天室 {name} 更新成功")
+    except Exception as e:
+        logger.error(f"更新聊天室失败: {str(e)}")
+        return jsonify(success=False, message=f"更新聊天室失败: {str(e)}"), 500
+
+
+@app.route('/api/admin/chat/rooms/<int:room_id>', methods=['DELETE'])
+@login_required
+def delete_chat_room(room_id):
+    if not current_user.is_admin():
+        return jsonify(success=False, message="权限不足"), 403
+
+    try:
+        room = db_session.query(ChatRoom).get(room_id)
+        if not room:
+            return jsonify(success=False, message="聊天室不存在"), 404
+
+        if room.id == 1:  # 默认聊天室不能删除
+            return jsonify(success=False, message="不能删除默认聊天室"), 400
+
+        room_name = room.name
+        db_session.delete(room)
+        db_session.commit()
+
+        log_admin_action(f"删除了聊天室: {room_name}")
+        return jsonify(success=True, message=f"聊天室 {room_name} 删除成功")
+    except Exception as e:
+        logger.error(f"删除聊天室失败: {str(e)}")
+        return jsonify(success=False, message=f"删除聊天室失败: {str(e)}"), 500
+
+
+@app.route('/api/admin/chat/messages', methods=['DELETE'])
+@login_required
+def delete_chat_messages():
+    if not current_user.is_admin():
+        return jsonify(success=False, message="权限不足"), 403
+
+    try:
+        # 获取查询参数
+        room_id = request.args.get('room_id', type=int)
+        before_date = request.args.get('before', type=str)
+
+        query = db_session.query(ChatMessage)
+        
+        if room_id:
+            query = query.filter(ChatMessage.room_id == room_id)
+        
+        if before_date:
+            # 将字符串转换为datetime对象
+            from datetime import datetime
+            before_datetime = datetime.fromisoformat(before_date.replace('Z', '+00:00'))
+            query = query.filter(ChatMessage.timestamp < before_datetime)
+
+        deleted_count = query.delete()
+        db_session.commit()
+
+        log_admin_action(f"清空聊天消息: {deleted_count} 条消息被删除")
+        return jsonify(success=True, message=f"成功删除 {deleted_count} 条聊天消息")
+    except Exception as e:
+        logger.error(f"删除聊天消息失败: {str(e)}")
+        return jsonify(success=False, message=f"删除聊天消息失败: {str(e)}"), 500
+
+
 # 贴吧管理相关路由
 @app.route('/api/admin/forum/sections/<int:section_id>', methods=['PUT'])
 @login_required
