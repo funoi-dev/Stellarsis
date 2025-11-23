@@ -1,8 +1,11 @@
+```
 # Compiled and build artifacts
 *.pyc
 __pycache__/
 *.o
 *.obj
+dist/
+build/
 
 # Dependencies
 .venv/
@@ -30,27 +33,14 @@ htmlcov/
 
 # Python
 *.pyc
-__pycache__/
 *.pyo
 *.pyd
 .Python
 *.so
-.Python
 *.egg-info/
 .eggs/
-
-# Build directories
-build/
-dist/
-*.egg
-*.whl
-*.zip
 
 # System files
 .DS_Store
 Thumbs.db
-
-# Original rules preserved
-*.log
-
-*.db
+```
