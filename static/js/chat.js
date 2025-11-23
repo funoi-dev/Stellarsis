@@ -3,6 +3,11 @@ let chatSocket = null;
 let chatHistoryLoaded = false;
 let lastMessageId = 0;
 let onlineUsers = [];
+
+
+// 添加变量来跟踪最后的消息日期
+let lastMessageDate = null;
+
 let roomId = null;
 let userId = null;
 let messageQueue = [];
@@ -79,10 +84,32 @@ function formatTimeDisplay(timestamp) {
     const date = new Date(timestamp);
     const beijingTime = new Date(date.getTime() + 8 * 60 * 60 * 1000);
     
-    // 格式化时间
+    // 获取日期部分
+    const year = beijingTime.getFullYear();
+    const month = (beijingTime.getMonth() + 1).toString().padStart(2, '0');
+    const day = beijingTime.getDate().toString().padStart(2, '0');
+    
+    // 获取时间部分
     const hours = beijingTime.getHours().toString().padStart(2, '0');
     const minutes = beijingTime.getMinutes().toString().padStart(2, '0');
-    return `${hours}:${minutes}`;
+    
+    // 格式化为 "YYYY-MM-DD HH:MM"
+    return `${year}-${month}-${day} ${hours}:${minutes}`;
+}
+
+// 获取消息日期部分（仅日期）
+function getMessageDate(timestamp) {
+    // 将UTC时间转换为UTC+8（北京时间）
+    const date = new Date(timestamp);
+    const beijingTime = new Date(date.getTime() + 8 * 60 * 60 * 1000);
+    
+    // 获取日期部分
+    const year = beijingTime.getFullYear();
+    const month = (beijingTime.getMonth() + 1).toString().padStart(2, '0');
+    const day = beijingTime.getDate().toString().padStart(2, '0');
+    
+    // 格式化为 "YYYY-MM-DD"
+    return `${year}-${month}-${day}`;
 }
 
 // 全局变量 - 需要从页面数据获取
@@ -161,6 +188,9 @@ function loadChatHistory() {
             const messagesContainer = document.getElementById('chat-messages');
             if (!messagesContainer) return;
             
+            // 重置日期跟踪变量，以便在加载历史时能正确显示日期分隔符
+            lastMessageDate = null;
+            
             // 保存当前滚动位置
             const isScrolledToBottom = Math.abs(
                 messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight
@@ -173,6 +203,8 @@ function loadChatHistory() {
             // 更新最后一条消息ID
             if (data.messages.length > 0) {
                 lastMessageId = data.messages[data.messages.length - 1].id;
+                // 设置最后消息日期为最后一条消息的日期
+                lastMessageDate = getMessageDate(data.messages[data.messages.length - 1].timestamp);
             }
             
             // 如果之前滚动到底部，则滚动到底部
@@ -485,6 +517,16 @@ function addMessageToUI(msg, isLocal = false) {
     const messagesContainer = document.getElementById('chat-messages');
     if (!messagesContainer) return;
     
+    // 检查是否需要添加日期分隔符
+    if (msg.timestamp) {
+        const currentDate = getMessageDate(msg.timestamp);
+        if (lastMessageDate && lastMessageDate !== currentDate) {
+            // 添加日期分隔符
+            addDateSeparator(messagesContainer, currentDate);
+        }
+        lastMessageDate = currentDate;
+    }
+    
     // 1. 检查重复消息ID
     if (msg.id && processedMessageIds.has(msg.id)) {
         return;
@@ -526,6 +568,18 @@ function addMessageToUI(msg, isLocal = false) {
     // 添加到容器
     messagesContainer.appendChild(messageElement);
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+// 添加日期分隔符
+function addDateSeparator(container, dateStr) {
+    const separatorElement = document.createElement('div');
+    separatorElement.className = 'date-separator';
+    separatorElement.innerHTML = `
+        <div class="date-separator-line"></div>
+        <span class="date-separator-text">${dateStr}</span>
+        <div class="date-separator-line"></div>
+    `;
+    container.appendChild(separatorElement);
 }
 
 // 添加状态消息
@@ -624,8 +678,7 @@ function createMessageElement(msg, isLocal = false) {
         // 系统消息时间
         const timeElement = document.createElement('span');
         timeElement.className = 'system-message-time';
-        const date = new Date(msg.timestamp);
-        timeElement.textContent = formatTimeDisplay(date);
+        timeElement.textContent = formatTimeDisplay(msg.timestamp);
         
         messageElement.appendChild(contentElement);
         messageElement.appendChild(timeElement);
@@ -716,6 +769,9 @@ function retryRenderingAllMessages() {
 
 // 全局初始化函数
 window.initChat = function() {
+    // 重置日期跟踪变量
+    lastMessageDate = null;
+    
     // 从页面数据获取房间ID
     const roomElement = document.getElementById('chat-room-data');
     if (!roomElement) {

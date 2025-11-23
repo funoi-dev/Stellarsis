@@ -21,6 +21,27 @@
     color: #999;
 }
 
+/* 日期分隔符样式 */
+.date-separator {
+    display: flex;
+    align-items: center;
+    margin: 15px 0;
+    text-align: center;
+    color: #999;
+    font-size: 0.9em;
+}
+
+.date-separator-line {
+    flex: 1;
+    height: 1px;
+    background-color: #ddd;
+}
+
+.date-separator-text {
+    padding: 0 15px;
+    white-space: nowrap;
+}
+
 /* 防止系统消息过多时影响体验 */
 #chat-messages {
     max-height: calc(100vh - 150px);
