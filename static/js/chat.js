@@ -12,6 +12,9 @@ const MAX_RENDER_RETRY = 3;
 let processedMessageIds = new Set();
 const processedContentHashes = new Set();
 const pendingMessages = new Map();
+// 扩展已处理消息集合，区分不同类型
+const processedSystemEvents = new Map(); // {eventType_userId_timestamp: true}
+const recentSystemMessages = new Map(); // 防止重复系统消息
 
 // 初始化渲染系统
 function initializeRenderingSystem() {
@@ -243,7 +246,13 @@ function setupWebSocket() {
         
         chatSocket.on('connect', () => {
             console.log('WebSocket连接已建立');
-            chatSocket.emit('join', {room: roomId});
+            
+            // 关键修改：仅在首次连接时发送join事件
+            if (!chatSocket.hasJoinedRoom) {
+                chatSocket.emit('join', {room: roomId});
+                chatSocket.hasJoinedRoom = true; // 标记已加入房间
+            }
+            
             updateOnlineStatus();
         });
         
@@ -473,18 +482,41 @@ function addMessageToUI(msg, isLocal = false) {
     const messagesContainer = document.getElementById('chat-messages');
     if (!messagesContainer) return;
     
-    // 高级重复消息检测：不仅检查ID，还检查内容+时间的组合
-    const contentHash = generateContentHash(msg.content, msg.timestamp);
-    if ((msg.id && processedMessageIds.has(msg.id)) || 
-        processedContentHashes.has(contentHash)) {
+    // 1. 检查重复消息ID
+    if (msg.id && processedMessageIds.has(msg.id)) {
         return;
     }
     
-    // 添加到已处理集合
-    if (msg.id) processedMessageIds.add(msg.id);
+    // 2. 特殊处理系统消息
+    if (msg.type === 'system' || msg.type === 'join' || msg.type === 'leave') {
+        const eventKey = `${msg.type}_${msg.user_id}_${Math.floor(new Date(msg.timestamp).getTime() / 60000)}`;
+        if (processedSystemEvents.has(eventKey)) {
+            return;
+        }
+        processedSystemEvents.set(eventKey, true);
+        
+        // 限制系统事件缓存大小，避免内存泄漏
+        if (processedSystemEvents.size > 100) {
+            const keys = Array.from(processedSystemEvents.keys());
+            for (let i = 0; i < 20; i++) {
+                processedSystemEvents.delete(keys[i]);
+            }
+        }
+    }
+    
+    // 3. 高级重复消息检测：不仅检查ID，还检查内容+时间的组合
+    const contentHash = generateContentHash(msg.content, msg.timestamp);
+    if (processedContentHashes.has(contentHash)) {
+        return;
+    }
+    
+    // 4. 添加到已处理集合
+    if (msg.id) {
+        processedMessageIds.add(msg.id);
+    }
     processedContentHashes.add(contentHash);
     
-    // 创建消息元素（传递原始消息对象和是否本地消息标志）
+    // 创建并添加消息元素
     const messageElement = createMessageElement(msg, isLocal);
     messageElement.dataset.contentHash = contentHash;  // 存储内容哈希以便后续匹配
     
@@ -497,6 +529,27 @@ function addMessageToUI(msg, isLocal = false) {
 function addStatusMessage(msg) {
     const messagesContainer = document.getElementById('chat-messages');
     if (!messagesContainer) return;
+    
+    // 生成消息指纹
+    const messageFingerprint = msg.substring(0, 50); // 取前50个字符
+    const now = Date.now();
+    
+    // 检查是否最近已显示相同消息
+    if (recentSystemMessages.has(messageFingerprint)) {
+        const lastShown = recentSystemMessages.get(messageFingerprint);
+        if (now - lastShown < 5000) { // 5秒内不重复显示
+            return;
+        }
+    }
+    
+    recentSystemMessages.set(messageFingerprint, now);
+    
+    // 清理旧记录
+    setTimeout(() => {
+        if (recentSystemMessages.get(messageFingerprint) === now) {
+            recentSystemMessages.delete(messageFingerprint);
+        }
+    }, 10000);
     
     const statusElement = document.createElement('div');
     statusElement.className = 'chat-status';
@@ -542,8 +595,41 @@ function updateExistingMessage(clientId, serverMessage) {
 // 创建消息元素
 function createMessageElement(msg, isLocal = false) {
     const messageElement = document.createElement('div');
-    messageElement.className = `chat-message ${isLocal ? 'local-message' : ''} ${msg.isPending ? 'pending-message' : ''}`;
     
+    // 区分消息类型
+    if (msg.type === 'system' || msg.type === 'join' || msg.type === 'leave') {
+        messageElement.className = 'chat-system-message';
+    } else {
+        messageElement.className = `chat-message ${isLocal ? 'local-message' : ''} ${msg.isPending ? 'pending-message' : ''}`;
+    }
+    
+    // 系统消息特殊处理
+    if (msg.type === 'system' || msg.type === 'join' || msg.type === 'leave') {
+        const contentElement = document.createElement('div');
+        contentElement.className = 'system-message-content';
+        
+        // 格式化系统消息
+        let messageText = msg.content;
+        if (msg.type === 'join') {
+            messageText = `${msg.nickname || msg.username} 加入了聊天室`;
+        } else if (msg.type === 'leave') {
+            messageText = `${msg.nickname || msg.username} 离开了聊天室`;
+        }
+        
+        contentElement.textContent = messageText;
+        
+        // 系统消息时间
+        const timeElement = document.createElement('span');
+        timeElement.className = 'system-message-time';
+        const date = new Date(msg.timestamp);
+        timeElement.textContent = formatTimeDisplay(date);
+        
+        messageElement.appendChild(contentElement);
+        messageElement.appendChild(timeElement);
+        return messageElement;
+    }
+    
+    // 用户消息处理
     // 用户信息
     const userElement = document.createElement('div');
     userElement.className = 'message-user';
@@ -644,31 +730,29 @@ window.initChat = function() {
         currentUserColor = roomData.color || '#000000';
         currentUserBadge = roomData.badge || '';
         
-        // 设置在线人数
+        // 1. 先设置UI元素
         const onlineCountElement = document.getElementById('online-count');
         if (onlineCountElement) {
             onlineCountElement.textContent = '加载中...';
         }
         
-        // 设置模态框
         setupModal();
-        
-        // 加载历史消息
-        loadChatHistory();
-        
-        // 连接WebSocket
-        setupWebSocket();
-        
-        // 设置发送按钮事件
         setupMessageInput();
         
-        // 监听渲染就绪事件
+        // 2. 然后连接WebSocket
+        setupWebSocket();
+        
+        // 3. 最后加载历史消息（确保WebSocket已设置好）
+        setTimeout(() => {
+            loadChatHistory();
+        }, 500); // 短暂延迟，确保WebSocket有时间初始化
+        
+        // 4. 设置渲染就绪处理
         document.addEventListener('renderReady', function() {
             isRenderingReady = true;
             processMessageQueue();
         });
         
-        // 检查是否已经就绪
         if (typeof window.renderContent === 'function') {
             isRenderingReady = true;
         }

@@ -1,0 +1,33 @@
+/* 系统消息样式 */
+.chat-system-message {
+    display: flex;
+    justify-content: center;
+    margin: 8px 0;
+    color: #666;
+    font-size: 0.85em;
+}
+
+.system-message-content {
+    background-color: #f0f0f0;
+    padding: 4px 10px;
+    border-radius: 12px;
+    max-width: 80%;
+    text-align: center;
+}
+
+.system-message-time {
+    font-size: 0.75em;
+    margin-left: 8px;
+    color: #999;
+}
+
+/* 防止系统消息过多时影响体验 */
+#chat-messages {
+    max-height: calc(100vh - 150px);
+    overflow-y: auto;
+}
+
+/* 消息元素过渡效果 */
+.chat-message, .chat-system-message {
+    transition: opacity 0.2s ease;
+}

@@ -1140,7 +1140,92 @@ def delete_chat_messages():
         return jsonify(success=False, message=f"删除聊天消息失败: {str(e)}"), 500
 
 
+@app.route('/api/admin/chat/rooms', methods=['POST'])
+@login_required
+def create_chat_room():
+    if not current_user.is_admin():
+        return jsonify({'success': False, 'message': "权限不足"}), 403
+
+    try:
+        data = request.get_json()
+        name = data.get('name', '').strip()
+        description = data.get('description', '').strip()
+
+        # 验证必填字段
+        if not name:
+            return jsonify({'success': False, 'message': "聊天室名称不能为空"}), 400
+
+        # 检查聊天室名称是否已存在
+        existing_room = db_session.query(ChatRoom).filter_by(name=name).first()
+        if existing_room:
+            return jsonify({'success': False, 'message': "聊天室名称已存在"}), 400
+
+        # 创建新聊天室
+        new_room = ChatRoom(
+            name=name,
+            description=description
+        )
+        db_session.add(new_room)
+        db_session.commit()
+
+        log_admin_action(f"创建了聊天室 {new_room.name}")
+        return jsonify({
+            'success': True,
+            'message': f"聊天室 {new_room.name} 创建成功",
+            'room': {
+                'id': new_room.id,
+                'name': new_room.name,
+                'description': new_room.description
+            }
+        })
+    except Exception as e:
+        logger.error(f"创建聊天室失败: {str(e)}")
+        return jsonify({'success': False, 'message': f"创建聊天室失败: {str(e)}"}), 500
+
+
 # 贴吧管理相关路由
+@app.route('/api/admin/forum/sections', methods=['POST'])
+@login_required
+def create_forum_section():
+    if not current_user.is_admin():
+        return jsonify({'success': False, 'message': "权限不足"}), 403
+
+    try:
+        data = request.get_json()
+        name = data.get('name', '').strip()
+        description = data.get('description', '').strip()
+
+        # 验证必填字段
+        if not name:
+            return jsonify({'success': False, 'message': "分区名称不能为空"}), 400
+
+        # 检查分区名称是否已存在
+        existing_section = db_session.query(ForumSection).filter_by(name=name).first()
+        if existing_section:
+            return jsonify({'success': False, 'message': "分区名称已存在"}), 400
+
+        # 创建新分区
+        new_section = ForumSection(
+            name=name,
+            description=description
+        )
+        db_session.add(new_section)
+        db_session.commit()
+
+        log_admin_action(f"创建了贴吧分区 {new_section.name}")
+        return jsonify({
+            'success': True, 
+            'message': f"贴吧分区 {new_section.name} 创建成功",
+            'section': {
+                'id': new_section.id,
+                'name': new_section.name,
+                'description': new_section.description
+            }
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': f"创建贴吧分区失败: {str(e)}"}), 500
+
+
 @app.route('/api/admin/forum/sections/<int:section_id>', methods=['PUT'])
 @login_required
 def update_forum_section(section_id):
