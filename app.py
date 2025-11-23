@@ -1387,11 +1387,11 @@ def on_join(data):
     current_user.last_seen = datetime.utcnow()
     db_session.commit()
     
-    # 广播用户加入
-    emit('status', {
-        'msg': f'{current_user.nickname or current_user.username} 加入了聊天室',
-        'user_id': current_user.id
-    }, room=room_name)
+    # 不再广播用户加入（取消进入聊天室的提示）
+    # emit('status', {
+    #     'msg': f'{current_user.nickname or current_user.username} 加入了聊天室',
+    #     'user_id': current_user.id
+    # }, room=room_name)
 
 @socketio.on('leave')
 def on_leave(data):
@@ -1406,11 +1406,11 @@ def on_leave(data):
     room_name = f"room_{room_id}"
     leave_room(room_name)
     
-    # 广播用户离开
-    emit('status', {
-        'msg': f'{current_user.nickname or current_user.username} 离开了聊天室',
-        'user_id': current_user.id
-    }, room=room_name)
+    # 不再广播用户离开（取消离开聊天室的提示）
+    # emit('status', {
+    #     'msg': f'{current_user.nickname or current_user.username} 离开了聊天室',
+    #     'user_id': current_user.id
+    # }, room=room_name)
 
 @socketio.on('send_message')
 def handle_message(data):
