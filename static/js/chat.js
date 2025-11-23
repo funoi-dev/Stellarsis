@@ -296,10 +296,6 @@ function setupWebSocket() {
             }
         });
         
-        chatSocket.on('status', (data) => {
-            addStatusMessage(data.msg);
-        });
-        
         chatSocket.on('online_users', (data) => {
             onlineUsers = data.users || [];
             updateOnlineCount();
@@ -813,6 +809,19 @@ window.addEventListener('unhandledrejection', function(e) {
     e.preventDefault();
 });
 
+// 全局在线人数更新 - 用于所有页面
+function initializeGlobalOnlineCount() {
+    // 初始化时先获取一次全局在线人数
+    updateGlobalOnlineCount();
+    
+    // 设置定时器定期更新全局在线人数（如果WebSocket不可用）
+    setInterval(() => {
+        if (!chatSocket || !chatSocket.connected) {
+            updateGlobalOnlineCount();
+        }
+    }, 60000); // 每分钟更新一次（当WebSocket不可用时）
+}
+
 // 页面加载完成后自动初始化
 document.addEventListener('DOMContentLoaded', function() {
     if (document.getElementById('chat-messages')) {
@@ -828,5 +837,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
         });
+    } else {
+        // 如果不是聊天页面，仍然初始化全局在线人数更新
+        initializeGlobalOnlineCount();
     }
 });

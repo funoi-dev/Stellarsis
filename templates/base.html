@@ -48,7 +48,7 @@
 
     <footer>
         <div class="container">
-            <p>群星议会 &copy; 2025 | 在线人数: <span id="online-count">加载中...</span></p>
+            <p>群星议会 &copy; 2025 | 在线人数: <span id="global-online-count">加载中...</span></p>
         </div>
     </footer>
 
@@ -284,6 +284,138 @@
             // 触发自定义事件，通知页面渲染库已就绪
             var event = new Event('renderReady');
             document.dispatchEvent(event);
+        });
+    </script>
+    
+    <!-- 全局在线人数更新 -->
+    <script>
+        // 添加socket.io加载状态跟踪
+        document.globalSocketIoLoaded = false;
+        document.globalSocketIoCallbacks = [];
+        
+        function onGlobalSocketIoLoaded() {
+            document.globalSocketIoLoaded = true;
+            document.globalSocketIoCallbacks.forEach(cb => cb());
+            document.globalSocketIoCallbacks = [];
+        }
+        
+        function waitForGlobalSocketIo(callback) {
+            if (document.globalSocketIoLoaded) {
+                callback();
+            } else {
+                document.globalSocketIoCallbacks.push(callback);
+            }
+        }
+        
+        // 确保socket.io加载
+        if (typeof io === 'undefined') {
+            var script = document.createElement('script');
+            script.src = "{{ url_for('static', filename='js/vendor/socket.io.min.js') }}";
+            script.onload = function() {
+                onGlobalSocketIoLoaded();
+            };
+            script.onerror = function() {
+                console.error('socket.io 加载失败');
+                onGlobalSocketIoLoaded(); // 继续执行降级方案
+            };
+            document.head.appendChild(script);
+        } else {
+            onGlobalSocketIoLoaded();
+        }
+        
+        // 全局变量
+        let globalSocket = null;
+        
+        // 更新全局在线人数显示
+        function updateGlobalOnlineCountDisplay(count) {
+            const globalOnlineCountElement = document.getElementById('global-online-count');
+            if (globalOnlineCountElement) {
+                globalOnlineCountElement.textContent = count || '未知';
+            }
+        }
+        
+        // 获取全局在线人数（WebSocket或fetch）
+        function getGlobalOnlineCount() {
+            if (globalSocket && globalSocket.connected) {
+                // WebSocket可用
+                globalSocket.emit('get_global_online_count', {});
+            } else {
+                // WebSocket不可用，使用fetch降级方案
+                fetch('/api/online_count')
+                    .then(response => response.json())
+                    .then(data => {
+                        updateGlobalOnlineCountDisplay(data.count);
+                    })
+                    .catch(error => {
+                        console.error('获取全局在线人数失败:', error);
+                        updateGlobalOnlineCountDisplay('错误');
+                    });
+            }
+        }
+        
+        // 初始化全局在线人数更新
+        function initializeGlobalOnlineCount() {
+            // 先获取一次全局在线人数
+            getGlobalOnlineCount();
+            
+            // 设置定时器定期更新（当WebSocket不可用时）
+            setInterval(() => {
+                if (!globalSocket || !globalSocket.connected) {
+                    getGlobalOnlineCount();
+                }
+            }, 60000); // 每分钟更新一次
+        }
+        
+        // 设置WebSocket连接
+        function setupGlobalSocket() {
+            waitForGlobalSocketIo(function() {
+                if (typeof io === 'undefined') {
+                    console.log('socket.io 未加载，使用fetch降级方案');
+                    initializeGlobalOnlineCount();
+                    return;
+                }
+                
+                try {
+                    globalSocket = io('/', {
+                        path: '/socket.io',
+                        reconnection: true,
+                        reconnectionAttempts: 5,
+                        reconnectionDelay: 1000,
+                        timeout: 20000,
+                        transports: ['websocket', 'polling']
+                    });
+                    
+                    globalSocket.on('connect', () => {
+                        console.log('全局WebSocket连接已建立');
+                        // 连接建立后，定期更新全局在线人数
+                        setInterval(() => {
+                            getGlobalOnlineCount();
+                        }, 30000); // 每30秒更新一次
+                    });
+                    
+                    globalSocket.on('disconnect', (reason) => {
+                        console.log('全局WebSocket断开连接:', reason);
+                        updateGlobalOnlineCountDisplay('连接中...');
+                    });
+                    
+                    globalSocket.on('connect_error', (error) => {
+                        console.error('全局WebSocket连接错误:', error);
+                        updateGlobalOnlineCountDisplay('连接错误');
+                    });
+                    
+                    globalSocket.on('global_online_count', (data) => {
+                        updateGlobalOnlineCountDisplay(data.count);
+                    });
+                } catch (e) {
+                    console.error('全局WebSocket初始化失败:', e);
+                    initializeGlobalOnlineCount(); // 使用降级方案
+                }
+            });
+        }
+        
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            setupGlobalSocket();
         });
     </script>
     {% endblock %}

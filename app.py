@@ -287,16 +287,26 @@ def sanitize_content(content):
     return content
 
 def get_online_users(room_id):
-    """获取指定房间的在线用户（简化版）"""
-    # 实际应用中应查询数据库中最近5分钟有活动的用户
-    # 这里返回一个示例
-    return [{
-        'id': current_user.id,
-        'username': current_user.username,
-        'nickname': current_user.nickname or current_user.username,
-        'color': current_user.color,
-        'badge': current_user.badge
-    }]
+    """获取指定房间的在线用户"""
+    # 获取最近5分钟有活动的用户
+    from datetime import datetime, timedelta
+    cutoff_time = datetime.utcnow() - timedelta(seconds=app.config.get('ONLINE_TIMEOUT', 300))
+    
+    # 实际上Flask-SocketIO没有内置的房间在线用户列表，我们需要自己维护
+    # 这里简化处理，返回最近活动的用户
+    recent_users = db_session.query(User).filter(User.last_seen >= cutoff_time).all()
+    
+    online_users = []
+    for user in recent_users:
+        online_users.append({
+            'id': user.id,
+            'username': user.username,
+            'nickname': user.nickname or user.username,
+            'color': user.color,
+            'badge': user.badge
+        })
+    
+    return online_users
 
 def get_recent_logs(limit=10):
     """获取最近的系统日志"""
@@ -485,6 +495,19 @@ def send_chat_message():
     
     # 返回成功响应
     return jsonify(success=True)
+
+
+@app.route('/api/online_count')
+@login_required
+def get_online_count():
+    """获取全局在线用户数"""
+    from datetime import datetime, timedelta
+    cutoff_time = datetime.utcnow() - timedelta(seconds=app.config.get('ONLINE_TIMEOUT', 300))
+    
+    # 查询最近活动的用户数
+    online_count = db_session.query(User).filter(User.last_seen >= cutoff_time).count()
+    
+    return jsonify(count=online_count)
 
 # 贴吧相关路由
 @app.route('/forum')
@@ -1443,10 +1466,26 @@ def handle_get_online_users(data):
     if not room_id:
         return
     
-    # 获取在线用户（简化版）
+    # 获取在线用户
     online_users = get_online_users(room_id)
     
     emit('online_users', {'users': online_users})
+
+
+@socketio.on('get_global_online_count')
+def handle_get_global_online_count(data):
+    """获取全局在线用户数"""
+    if not current_user.is_authenticated:
+        return
+    
+    from datetime import datetime, timedelta
+    cutoff_time = datetime.utcnow() - timedelta(seconds=app.config.get('ONLINE_TIMEOUT', 300))
+    
+    # 查询最近活动的用户数
+    online_count = db_session.query(User).filter(User.last_seen >= cutoff_time).count()
+    
+    # 发送全局在线人数到客户端
+    emit('global_online_count', {'count': online_count})
 
 # 全局上下文处理器
 @app.context_processor
@@ -1457,8 +1496,13 @@ def inject_user():
 @app.context_processor
 def inject_online_count():
     """注入在线用户数到模板"""
-    # 实际应用中应该查询数据库
-    return dict(online_count=1)  # 仅示例
+    from datetime import datetime, timedelta
+    cutoff_time = datetime.utcnow() - timedelta(seconds=app.config.get('ONLINE_TIMEOUT', 300))
+    
+    # 查询最近活动的用户数
+    online_count = db_session.query(User).filter(User.last_seen >= cutoff_time).count()
+    
+    return dict(online_count=online_count)
 
 # 错误处理
 @app.errorhandler(403)
