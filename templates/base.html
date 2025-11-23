@@ -6,7 +6,7 @@
     <title>群星议会</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
     <!-- KaTeX CSS -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/katex.min.css') }}" 
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css" 
           crossorigin="anonymous">
     {% block head %}{% endblock %}
 </head>
@@ -24,8 +24,8 @@
                     {% else %}
                     <li><a href="{{ url_for('login') }}">登录</a></li>
                     {% endif %}
-                    {% if current_user.is_authenticated and current_user.is_admin() %}
-                    <li><a href="{{ url_for('admin_index') }}">{{ current_user.username == 'admin' and '管理面板' or '管理员' }}</a></li>
+                    {% if current_user.is_authenticated and current_user.id == 1 %}
+                    <li><a href="{{ url_for('admin_index') }}">管理面板</a></li>
                     {% endif %}
                 </ul>
             </nav>
@@ -178,11 +178,11 @@
         // 加载渲染库
         function loadRenderLibs(callback) {
             // 首先加载marked
-            loadScript('{{ url_for('static', filename='js/vendor/marked.min.js') }}', function(err) {
+            loadScript('https://cdn.jsdelivr.net/npm/marked@4.0.0/marked.min.js', function(err) {
                 if (err) return callback(err);
                 
                 // 然后加载KaTeX JS
-                loadScript('{{ url_for('static', filename='js/vendor/katex.min.js') }}', callback);
+                loadScript('https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.js', callback);
             });
         }
         
