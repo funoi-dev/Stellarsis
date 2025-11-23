@@ -1,18 +1,0 @@
-2025-11-21 21:40:57,438 - social_platform - INFO - 应用启动成功 - 使用UTF-8编码日志
-2025-11-21 21:40:57,647 - social_platform - INFO - 管理员操作: 数据库初始化完成
-2025-11-21 21:40:57,648 - social_platform - INFO - 应用启动成功
-2025-11-21 21:40:58,545 - social_platform - INFO - 应用启动成功 - 使用UTF-8编码日志
-2025-11-21 21:40:58,772 - social_platform - INFO - 管理员操作: 数据库初始化完成
-2025-11-21 21:40:58,772 - social_platform - INFO - 应用启动成功
-2025-11-21 21:44:00,446 - social_platform - INFO - 应用启动成功 - 使用UTF-8编码日志
-2025-11-21 21:44:00,674 - social_platform - INFO - 管理员操作: 数据库初始化完成
-2025-11-21 21:44:00,674 - social_platform - INFO - 应用启动成功
-2025-11-21 21:44:55,497 - social_platform - INFO - 管理员操作: 读取文件: app.py
-2025-11-21 21:44:56,692 - social_platform - INFO - 管理员操作: 读取文件: config.py
-2025-11-21 21:44:58,280 - social_platform - INFO - 管理员操作: 读取文件: requirements.txt
-2025-11-21 21:44:59,472 - social_platform - INFO - 管理员操作: 读取文件: social_platform.db
-2025-11-21 21:45:04,973 - social_platform - INFO - 管理员操作: 读取文件失败: staticjschat.js - 文件不存在或为目录
-2025-11-21 21:45:05,680 - social_platform - INFO - 管理员操作: 读取文件失败: staticjsorum.js - 文件不存在或为目录
-2025-11-21 21:45:07,076 - social_platform - INFO - 管理员操作: 读取文件失败: staticjsendormarked.min.js - 文件不存在或为目录
-2025-11-21 21:45:07,550 - social_platform - INFO - 管理员操作: 读取文件失败: staticjsendorsocket.io.min.js - 文件不存在或为目录
-2025-11-21 21:45:12,561 - social_platform - INFO - 管理员操作: 读取文件失败: templatesase.html - 文件不存在或为目录
