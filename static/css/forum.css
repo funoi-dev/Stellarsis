@@ -1,0 +1,349 @@
+/* 论坛页面样式 */
+
+/* 论坛卡片样式 */
+.forum-container {
+    max-width: 1000px;
+    margin: 20px auto;
+    padding: 0 15px;
+}
+
+.section-card {
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    border-radius: 12px;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+    padding: 25px;
+    margin-bottom: 25px;
+    transition: all 0.3s ease;
+    border: none;
+    position: relative;
+    overflow: hidden;
+    animation: slideInUp 0.6s ease-out;
+}
+
+.section-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background: linear-gradient(to bottom, #667eea 0%, #764ba2 100%);
+}
+
+.section-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.15);
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    position: relative;
+}
+
+.section-title {
+    margin: 0;
+    color: #495057;
+    font-size: 1.4em;
+    font-weight: 700;
+    background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.section-description {
+    color: #6c757d;
+    margin-bottom: 15px;
+    font-size: 1em;
+    line-height: 1.6;
+}
+
+.threads-list {
+    list-style: none;
+    padding: 0;
+}
+
+.thread-item {
+    padding: 15px 0;
+    border-bottom: 1px solid #e9ecef;
+    transition: background-color 0.2s ease;
+}
+
+.thread-item:last-child {
+    border-bottom: none;
+}
+
+.thread-item:hover {
+    background-color: rgba(102, 126, 234, 0.03);
+    border-radius: 8px;
+    padding: 15px 10px;
+    margin: 0 -10px;
+}
+
+.thread-title {
+    font-size: 1.1em;
+    margin: 0 0 8px 0;
+    font-weight: 600;
+}
+
+.thread-title a {
+    color: #212529;
+    text-decoration: none;
+    transition: color 0.3s ease;
+    position: relative;
+}
+
+.thread-title a::after {
+    content: '';
+    position: absolute;
+    width: 0;
+    height: 1px;
+    bottom: -2px;
+    left: 0;
+    background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+    transition: width 0.3s ease;
+}
+
+.thread-title a:hover {
+    color: #667eea;
+}
+
+.thread-title a:hover::after {
+    width: 100%;
+}
+
+.thread-meta {
+    display: flex;
+    color: #6c757d;
+    font-size: 0.85em;
+}
+
+.thread-meta span {
+    margin-right: 20px;
+    display: flex;
+    align-items: center;
+}
+
+.thread-meta i {
+    margin-right: 5px;
+}
+
+.new-thread-btn {
+    display: inline-block;
+    padding: 12px 24px;
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    color: white;
+    text-decoration: none;
+    border-radius: 8px;
+    margin-bottom: 25px;
+    font-weight: 500;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+    border: none;
+    cursor: pointer;
+}
+
+.new-thread-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+    text-decoration: none;
+    color: white;
+}
+
+/* 帖子详情页面样式 */
+.thread-container {
+    max-width: 900px;
+    margin: 20px auto;
+    padding: 0 15px;
+}
+
+.thread-header {
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    border-radius: 12px;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+    padding: 25px;
+    margin-bottom: 20px;
+    animation: slideInUp 0.6s ease-out;
+}
+
+.thread-title-detail {
+    font-size: 1.8em;
+    margin: 0 0 15px 0;
+    color: #212529;
+    font-weight: 700;
+}
+
+.thread-author {
+    color: #6c757d;
+    font-size: 0.9em;
+    margin-bottom: 10px;
+}
+
+.thread-content {
+    line-height: 1.8;
+    color: #495057;
+    font-size: 1.1em;
+    padding: 15px 0;
+    border-top: 1px solid #e9ecef;
+    border-bottom: 1px solid #e9ecef;
+    margin: 15px 0;
+}
+
+.replies-container {
+    margin-top: 30px;
+}
+
+.reply-item {
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    padding: 20px;
+    margin-bottom: 15px;
+    animation: slideInUp 0.4s ease-out;
+    border-left: 4px solid #667eea;
+}
+
+.reply-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.reply-author {
+    font-weight: 600;
+    color: #495057;
+}
+
+.reply-time {
+    color: #6c757d;
+    font-size: 0.85em;
+}
+
+.reply-content {
+    line-height: 1.7;
+    color: #495057;
+}
+
+/* 发新帖表单样式 */
+.new-post-form {
+    max-width: 800px;
+    margin: 20px auto;
+    padding: 0 15px;
+}
+
+.form-container {
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    border-radius: 12px;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+    padding: 30px;
+    animation: slideInUp 0.6s ease-out;
+}
+
+.form-container h2 {
+    color: #495057;
+    margin-top: 0;
+    margin-bottom: 25px;
+    text-align: center;
+    background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .forum-container,
+    .thread-container,
+    .new-post-form {
+        margin: 15px auto;
+        padding: 0 10px;
+    }
+    
+    .section-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .section-header a {
+        margin-top: 10px;
+    }
+    
+    .thread-meta {
+        flex-direction: column;
+    }
+    
+    .thread-meta span {
+        margin-right: 0;
+        margin-bottom: 5px;
+    }
+    
+    .section-card {
+        padding: 20px;
+    }
+    
+    .thread-title {
+        font-size: 1.05em;
+    }
+    
+    .thread-title-detail {
+        font-size: 1.4em;
+    }
+    
+    .reply-item {
+        padding: 15px;
+    }
+    
+    .form-container {
+        padding: 20px;
+    }
+}
+
+@media (max-width: 480px) {
+    .forum-container,
+    .thread-container,
+    .new-post-form {
+        padding: 0 8px;
+    }
+    
+    .section-card {
+        padding: 15px;
+    }
+    
+    .thread-item {
+        padding: 12px 0;
+    }
+    
+    .thread-meta span {
+        font-size: 0.8em;
+    }
+    
+    .new-thread-btn {
+        padding: 10px 20px;
+        width: 100%;
+        text-align: center;
+    }
+    
+    .thread-title-detail {
+        font-size: 1.2em;
+    }
+    
+    .reply-item {
+        padding: 12px;
+    }
+}
+
+/* 动画定义 */
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
