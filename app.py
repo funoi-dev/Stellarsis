@@ -458,8 +458,9 @@ def chat_history(room_id):
     limit = min(request.args.get('limit', 50, type=int), 100)
     offset = request.args.get('offset', 0, type=int)
     
+    # 按时间戳升序排列（最旧的在前），确保消息按时间顺序排列
     messages = db_session.query(ChatMessage).filter_by(room_id=room_id)\
-        .order_by(ChatMessage.timestamp.desc()).limit(limit).offset(offset).all()
+        .order_by(ChatMessage.timestamp.asc()).limit(limit).offset(offset).all()
     
     # 转换为字典列表（只返回原始内容）
     messages_data = [{
@@ -471,7 +472,7 @@ def chat_history(room_id):
         'nickname': msg.user.nickname or msg.user.username,
         'color': msg.user.color,
         'badge': msg.user.badge
-    } for msg in reversed(messages)]  # 反转以保持时间顺序
+    } for msg in messages]  # 保持顺序，按时间升序
     
     return jsonify(messages=messages_data)
 

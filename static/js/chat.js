@@ -161,6 +161,11 @@ function loadChatHistory() {
             const messagesContainer = document.getElementById('chat-messages');
             if (!messagesContainer) return;
             
+            // 保存当前滚动位置
+            const isScrolledToBottom = Math.abs(
+                messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight
+            ) < 5;
+            
             data.messages.forEach(msg => {
                 addMessageToUI(msg);
             });
@@ -170,8 +175,10 @@ function loadChatHistory() {
                 lastMessageId = data.messages[data.messages.length - 1].id;
             }
             
-            // 滚动到底部
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            // 如果之前滚动到底部，则滚动到底部
+            if (isScrolledToBottom) {
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
             chatHistoryLoaded = true;
         })
         .catch(error => {
