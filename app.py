@@ -269,20 +269,19 @@ class ProfileForm(FlaskForm):
 
 # 全局工具函数
 def sanitize_content(content):
-    """基础XSS防护 - 仅允许安全的HTML标签"""
+    """基础XSS防护 - 对于前端渲染的内容，只进行基本的XSS防护"""
     if not content:
         return ""
     
-    # 先HTML转义
-    content = html.escape(content)
+    # 保留Markdown和LaTeX语法，只过滤危险的HTML标签和属性
+    # 防止script、iframe、object等危险标签
+    content = re.sub(r'<(script|iframe|object|embed|form|input|button|link|meta|base|body|html)[^>]*>.*?</\1>', '', content, flags=re.IGNORECASE)
+    content = re.sub(r'<(script|iframe|object|embed|form|input|button|link|meta|base|body|html)[^>]*>', '', content, flags=re.IGNORECASE)
     
-    # 允许的简单标签（Markdown会生成这些）
-    allowed_tags = ['b', 'i', 'em', 'strong', 'code', 'pre', 'a', 'ul', 'ol', 'li', 'blockquote', 'br', 'hr']
-    
-    # 处理链接（仅允许http/https）
-    content = re.sub(r'<a href=&quot;(https?://[^&quot;]+)&quot;>', 
-                    lambda m: f'<a href="{escape(m.group(1))}" target="_blank" rel="noopener noreferrer">', 
-                    content)
+    # 防止javascript:等危险协议
+    content = re.sub(r'javascript:', 'javascript_void', content, flags=re.IGNORECASE)
+    content = re.sub(r'vbscript:', 'vbscript_void', content, flags=re.IGNORECASE)
+    content = re.sub(r'data:', 'data_void', content, flags=re.IGNORECASE)
     
     return content
 
@@ -407,7 +406,7 @@ def change_password():
     if form.validate_on_submit():
         if not current_user.check_password(form.old_password.data):
             flash('当前密码错误', 'danger')
-            return redirect(url_for('change_password'))
+            return render_template('change_password.html', form=form)
         
         current_user.set_password(form.new_password.data)
         db_session.commit()
