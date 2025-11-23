@@ -325,12 +325,13 @@
         
         // 全局变量
         let globalSocket = null;
+        let globalOnlineCountInitialized = false;
         
         // 更新全局在线人数显示
         function updateGlobalOnlineCountDisplay(count) {
             const globalOnlineCountElement = document.getElementById('global-online-count');
             if (globalOnlineCountElement) {
-                globalOnlineCountElement.textContent = count || '未知';
+                globalOnlineCountElement.textContent = count || '0';
             }
         }
         
@@ -355,6 +356,9 @@
         
         // 初始化全局在线人数更新
         function initializeGlobalOnlineCount() {
+            if (globalOnlineCountInitialized) return; // 防止重复初始化
+            globalOnlineCountInitialized = true;
+            
             // 先获取一次全局在线人数
             getGlobalOnlineCount();
             
@@ -387,10 +391,8 @@
                     
                     globalSocket.on('connect', () => {
                         console.log('全局WebSocket连接已建立');
-                        // 连接建立后，定期更新全局在线人数
-                        setInterval(() => {
-                            getGlobalOnlineCount();
-                        }, 30000); // 每30秒更新一次
+                        // 连接建立后，获取一次全局在线人数
+                        getGlobalOnlineCount();
                     });
                     
                     globalSocket.on('disconnect', (reason) => {

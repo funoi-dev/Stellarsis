@@ -810,16 +810,11 @@ window.addEventListener('unhandledrejection', function(e) {
 });
 
 // 全局在线人数更新 - 用于所有页面
+// 注意：此函数现在仅在非聊天页面使用，聊天页面的全局在线人数由base.html处理
 function initializeGlobalOnlineCount() {
-    // 初始化时先获取一次全局在线人数
-    updateGlobalOnlineCount();
-    
-    // 设置定时器定期更新全局在线人数（如果WebSocket不可用）
-    setInterval(() => {
-        if (!chatSocket || !chatSocket.connected) {
-            updateGlobalOnlineCount();
-        }
-    }, 60000); // 每分钟更新一次（当WebSocket不可用时）
+    // 不执行任何操作，因为全局在线人数现在由base.html统一管理
+    // 避免重复更新导致冲突
+    console.log('聊天页面的全局在线人数由base.html统一管理');
 }
 
 // 页面加载完成后自动初始化
