@@ -1,6 +1,7 @@
 // 全局变量
 let chatSocket = null;
 let chatHistoryLoaded = false;
+let followedUserIds = new Set();  // 关注的用户ID集合
 let lastMessageId = 0;
 let onlineUsers = [];
 
@@ -285,11 +286,23 @@ function setupWebSocket() {
         
         chatSocket.on('connect', () => {
             console.log('WebSocket连接已建立');
-            
-            // 关键修改：仅在首次连接时发送join事件
             if (!chatSocket.hasJoinedRoom) {
+                // 加载关注列表
+                fetch('/api/follow/following')
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            followedUserIds = new Set(data.following.map(u => u.id));
+                            console.log('已加载关注用户:', Array.from(followedUserIds));
+                        }
+                    })
+                    .catch(err => {
+                        console.error('加载关注列表失败:', err);
+                        // 可选：降级为本地存储（但你要求后端存储，故不处理）
+                    });
+
                 chatSocket.emit('join', {room: roomId});
-                chatSocket.hasJoinedRoom = true; // 标记已加入房间
+                chatSocket.hasJoinedRoom = true;
             }
             
             updateOnlineStatus();
@@ -339,10 +352,44 @@ function setupWebSocket() {
             onlineUsers = data.users || [];
             updateOnlineCount();
         });
+
+        // 监听用户进出事件（用于关注通知）
+        chatSocket.on('user_join', (data) => {
+            if (followedUserIds.has(data.user_id)) {
+                addStatusMessage(`${data.nickname || data.username} 进入了聊天室`);
+            }
+        });
+
+        chatSocket.on('user_leave', (data) => {
+            if (followedUserIds.has(data.user_id)) {
+                addStatusMessage(`${data.nickname || data.username} 离开了聊天室`);
+            }
+        });
     } catch (e) {
         console.error('WebSocket初始化失败:', e);
         setupPolling();
     }
+}
+
+// 切换关注
+function toggleFollowUser(userId) {
+    fetch('/api/follow/toggle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            if (data.action === 'follow') {
+                followedUserIds.add(userId);
+            } else {
+                followedUserIds.delete(userId);
+            }
+            updateOnlineUsersList(); // 刷新按钮状态
+        }
+    })
+    .catch(err => console.error('关注操作失败:', err));
 }
 
 // 更新在线状态
@@ -389,8 +436,24 @@ function updateOnlineUsersList() {
             userDisplay += `<span class="user-badge" style="background-color:${user.color}">${user.badge}</span> `;
         }
         userDisplay += `<span class="user-name" style="color:${user.color}">${user.nickname || user.username}</span>`;
-        
+
+        // 关注按钮
+        const followBtn = document.createElement('button');
+        followBtn.className = 'follow-btn ' + (followedUserIds.has(user.id) ? 'following' : '');
+        followBtn.textContent = followedUserIds.has(user.id) ? '✓' : '+';
+        followBtn.style.float = 'right';
+        followBtn.style.border = '1px solid #ccc';
+        followBtn.style.borderRadius = '3px';
+        followBtn.style.width = '24px';
+        followBtn.style.height = '24px';
+        followBtn.style.fontSize = '12px';
+        followBtn.style.cursor = 'pointer';
+        followBtn.onclick = (e) => {
+            e.stopPropagation();
+            toggleFollowUser(user.id);
+        };
         li.innerHTML = userDisplay;
+        li.appendChild(followBtn);
         list.appendChild(li);
     });
 }
