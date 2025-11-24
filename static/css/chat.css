@@ -221,6 +221,34 @@
     font-size: 0.9em;
 }
 
+/* 关注按钮样式 */
+.follow-btn {
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    width: 24px;
+    height: 24px;
+    font-size: 12px;
+    cursor: pointer;
+    background-color: #f8f9fa;
+    transition: all 0.3s ease;
+}
+
+.follow-btn:hover {
+    background-color: #e9ecef;
+    border-color: #adb5bd;
+}
+
+.follow-btn.following {
+    background-color: #28a745;
+    color: white;
+    border-color: #28a745;
+}
+
+.follow-btn.following:hover {
+    background-color: #218838;
+    border-color: #1e7e34;
+}
+
 /* 响应式调整 */
 @media (max-width: 768px) {
     .chat-message {

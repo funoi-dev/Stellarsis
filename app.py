@@ -159,6 +159,18 @@ class ForumReply(Base):
     
     user = relationship('User', backref='forum_replies')
 
+
+# 关注关系表
+class UserFollow(Base):
+    __tablename__ = 'user_follows'
+    id = Column(Integer, primary_key=True)
+    follower_id = Column(Integer, ForeignKey('users.id'), nullable=False)  # 关注者
+    followed_id = Column(Integer, ForeignKey('users.id'), nullable=False)  # 被关注者
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    follower = relationship('User', foreign_keys=[follower_id], backref='following')
+    followed = relationship('User', foreign_keys=[followed_id], backref='followers')
+
 # 创建表
 Base.metadata.create_all(bind=engine)
 
@@ -1487,6 +1499,96 @@ def handle_get_global_online_count(data):
     
     # 发送全局在线人数到客户端
     emit('global_online_count', {'count': online_count})
+
+
+# === 新增关注功能 API ===
+
+@app.route('/api/follow/following')
+@login_required
+def get_following():
+    """获取当前用户关注的用户列表"""
+    following = db_session.query(UserFollow.followed_id).filter_by(follower_id=current_user.id).all()
+    following_ids = [row[0] for row in following]
+    users = db_session.query(User).filter(User.id.in_(following_ids)).all()
+    user_list = [{
+        'id': u.id,
+        'username': u.username,
+        'nickname': u.nickname or u.username,
+        'color': u.color,
+        'badge': u.badge
+    } for u in users]
+    return jsonify(success=True, following=user_list)
+
+
+@app.route('/api/follow/toggle', methods=['POST'])
+@login_required
+def toggle_follow():
+    """关注/取消关注某用户"""
+    data = request.get_json()
+    target_id = data.get('user_id')
+    if not target_id or target_id == current_user.id:
+        return jsonify(success=False, message="无效用户"), 400
+    target_user = db_session.query(User).get(target_id)
+    if not target_user:
+        return jsonify(success=False, message="用户不存在"), 404
+
+    existing = db_session.query(UserFollow).filter_by(
+        follower_id=current_user.id,
+        followed_id=target_id
+    ).first()
+
+    if existing:
+        db_session.delete(existing)
+        action = "unfollow"
+    else:
+        follow = UserFollow(follower_id=current_user.id, followed_id=target_id)
+        db_session.add(follow)
+        action = "follow"
+
+    db_session.commit()
+    log_admin_action(f"{current_user.username} {'关注' if action == 'follow' else '取消关注'} 用户 {target_user.username}")
+    return jsonify(success=True, action=action)
+
+
+# 修改 on_join：广播用户进入
+@socketio.on('join')
+def on_join(data):
+    if not current_user.is_authenticated:
+        return
+    room_id = data.get('room')
+    if not room_id:
+        return
+    room_name = f"room_{room_id}"
+    join_room(room_name)
+    current_user.last_seen = datetime.utcnow()
+    db_session.commit()
+    # 广播用户进入（供关注者监听）
+    emit('user_join', {
+        'user_id': current_user.id,
+        'username': current_user.username,
+        'nickname': current_user.nickname or current_user.username,
+        'room_id': room_id
+    }, broadcast=True)
+
+
+# 修改 on_leave：广播用户离开
+@socketio.on('leave')
+def on_leave(data):
+    if not current_user.is_authenticated:
+        return
+    room_id = data.get('room')
+    if not room_id:
+        return
+    room_name = f"room_{room_id}"
+    leave_room(room_name)
+    # 广播用户离开
+    emit('user_leave', {
+        'user_id': current_user.id,
+        'username': current_user.username,
+        'nickname': current_user.nickname or current_user.username,
+        'room_id': room_id
+    }, broadcast=True)
+
 
 # 全局上下文处理器
 @app.context_processor
